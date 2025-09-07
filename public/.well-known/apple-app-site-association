@@ -1,0 +1,26 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "962482SPW6.com.srahin000.quickbites",
+        "paths": [
+          "/restaurant/*",
+          "/order/*",
+          "/admin/*",
+          "/home",
+          "/orders",
+          "/profile",
+          "/kiosk",
+          "/cart",
+          "/game",
+          "/signup",
+          "/signin"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["962482SPW6.com.srahin000.quickbites"]
+  }
+} 

@@ -1,0 +1,13 @@
+{
+  "name": "quickbites-universal-links",
+  "version": "1.0.0",
+  "description": "Quickbites universal links landing page",
+  "main": "index.html",
+  "scripts": {
+    "start": "serve .",
+    "build": "echo 'Static site - no build required'"
+  },
+  "keywords": ["universal-links", "quickbites", "food-delivery"],
+  "author": "Quickbites Team",
+  "license": "MIT"
+} 

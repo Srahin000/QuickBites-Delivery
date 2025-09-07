@@ -1,0 +1,73 @@
+{
+  "expo": {
+    "name": "Quickbites",
+    "slug": "quickbites",
+    "scheme": "com.googleusercontent.apps.202497981968-3vvbdhdrgadicq2cnotm7kt826q0uhfa",
+    "version": "1.0.2",
+    "orientation": "portrait",
+    "icon": "./assets/image.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ]
+    ],
+    "splash": {
+      "image": "./assets/Untitled design (1).png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.srahin000.quickbites",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "associatedDomains": [
+        "applinks:quickbites-qk9rfrp0h-sadman-rahins-projects.vercel.app"
+      ]
+    },
+    "android": {
+      "package": "com.srahin000.quickbites",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/image.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "quickbites-q9h4.vercel.app"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/image.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "444ed843-9ec5-4779-8b4a-45817fd22e20"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/444ed843-9ec5-4779-8b4a-45817fd22e20"
+    }
+  }
+}

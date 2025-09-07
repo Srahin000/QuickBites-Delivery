@@ -1,0 +1,322 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Platform,
+  Dimensions,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../supabaseClient";
+import { useNavigation } from "@react-navigation/native";
+import { useSession } from "../context/SessionContext";
+import Animated, { 
+  FadeIn, 
+  FadeInDown, 
+  FadeInUp, 
+  SlideInRight,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming
+} from 'react-native-reanimated';
+import * as Icon from "react-native-feather";
+import LoadingSpinner from "../components/LoadingSpinner";
+import AnimatedButton from "../components/AnimatedButton";
+import { themeColors } from "../theme";
+import { StatusBar } from 'expo-status-bar';
+
+const { width, height } = Dimensions.get('window');
+
+export default function ProfileScreen() {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const navigator = useNavigation();
+  const { session, signOut } = useSession();
+  const [showSuggestForm, setShowSuggestForm] = useState(false);
+  const [restaurantName, setRestaurantName] = useState('');
+  const [restaurantAddress, setRestaurantAddress] = useState('');
+
+  // Animation values
+  const headerOpacity = useSharedValue(0);
+  const profileScale = useSharedValue(0.8);
+  const formTranslateY = useSharedValue(50);
+
+  useEffect(() => {
+    // Animate header and profile on mount
+    headerOpacity.value = withTiming(1, { duration: 800 });
+    profileScale.value = withSpring(1, { damping: 15, stiffness: 100 });
+  }, []);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!session?.user) {
+        console.log("No user session found");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching profile:", error);
+      } else {
+        setProfile(data);
+      }
+      setLoading(false);
+    };
+
+    fetchProfile();
+  }, [session]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      Alert.alert("Signed Out", "You have been signed out successfully.");
+    } catch (error) {
+      Alert.alert("Error", "Failed to sign out.");
+    }
+  };
+
+  const handleRestaurantSubmit = async () => {
+    if (!restaurantName.trim() || !restaurantAddress.trim()) {
+      Alert.alert("Missing Fields", "Please fill out both fields.");
+      return;
+    }
+
+    setSuggestLoading(true);
+    const { error } = await supabase
+      .from("restaurant_suggestions")
+      .insert([{ restaurant_name: restaurantName, address: restaurantAddress }]);
+
+    setSuggestLoading(false);
+
+    if (error) {
+      console.log("Error submitting suggestion:", JSON.stringify(error, null, 2));
+      Alert.alert("Error", "Failed to submit suggestion.");
+    } else {
+      Alert.alert("Success", "Restaurant suggested successfully!");
+      setRestaurantName('');
+      setRestaurantAddress('');
+      setShowSuggestForm(false);
+    }
+  };
+
+  const toggleSuggestForm = () => {
+    setShowSuggestForm(!showSuggestForm);
+    formTranslateY.value = withSpring(showSuggestForm ? 50 : 0, { damping: 15 });
+  };
+
+  // Animated styles
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity: headerOpacity.value,
+  }));
+
+  const profileStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: profileScale.value }],
+  }));
+
+  const formStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: formTranslateY.value }],
+  }));
+
+  if (loading) {
+    return <LoadingSpinner type="food" message="Loading Profile..." size="large" />;
+  }
+
+  if (!profile) {
+    return <LoadingSpinner type="dots" message="No profile found" size="medium" color="#9CA3AF" />;
+  }
+
+  return (
+    <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.purple }} edges={['top', 'left', 'right']}>
+      <StatusBar style="light" backgroundColor={themeColors.purple} />
+      {/* Purple Banner with Profile Circle and Info */}
+      <View style={{
+        backgroundColor: themeColors.purple,
+        height: 140,
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingTop: 10,
+      }}>
+        {/* Yellow Circle */}
+        <View style={{
+          backgroundColor: themeColors.yellow,
+          width: 96,
+          height: 96,
+          borderRadius: 48,
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.25,
+          shadowRadius: 16,
+          elevation: 12,
+        }}>
+          <Text className="text-3xl font-bold text-white">
+            {profile.first_name?.charAt(0) ?? ''}{profile.last_name?.charAt(0) ?? ''}
+          </Text>
+        </View>
+        {/* Name and Email */}
+        <View style={{ marginLeft: 20, flex: 1, justifyContent: 'center' }}>
+          <Text className="text-xl font-bold" style={{ color: 'white' }}>{profile.first_name} {profile.last_name}</Text>
+          <Text className="text-base" style={{ color: 'white', opacity: 0.85 }}>{profile.email}</Text>
+        </View>
+      </View>
+      <ScrollView
+        className="flex-1"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40, backgroundColor: 'white' }}
+      >
+
+        {/* Profile Details */}
+        <View className="px-6 space-y-4 mb-8 mt-10">
+          <Animated.View entering={FadeInUp.delay(400)}>
+            <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mx-2">
+              <View className="flex-row items-center mb-3">
+                <Icon.BookOpen className="w-5 h-5" style={{ color: themeColors.purple }} />
+                <Text className="text-gray-600 font-medium ml-3">School</Text>
+              </View>
+              <Text className="text-lg font-semibold text-gray-800">{profile.school_name}</Text>
+            </View>
+          </Animated.View>
+
+          <Animated.View entering={FadeInUp.delay(500)}>
+            <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mx-2">
+              <View className="flex-row items-center mb-3">
+                <Icon.Calendar className="w-5 h-5" style={{ color: themeColors.purple }} />
+                <Text className="text-gray-600 font-medium ml-3">Year</Text>
+              </View>
+              <Text className="text-lg font-semibold text-gray-800">{profile.school_year}</Text>
+            </View>
+          </Animated.View>
+
+          <Animated.View entering={FadeInUp.delay(600)}>
+            <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mx-2">
+              <View className="flex-row items-center mb-3">
+                <Icon.Award className="w-5 h-5" style={{ color: themeColors.purple }} />
+                <Text className="text-gray-600 font-medium ml-3">Major</Text>
+              </View>
+              <Text className="text-lg font-semibold text-gray-800">{profile.major}</Text>
+            </View>
+          </Animated.View>
+        </View>
+
+        {/* Sign Out Button */}
+        <Animated.View entering={FadeInUp.delay(700)} className="px-8">
+          <TouchableOpacity
+            onPress={handleSignOut}
+            style={{ backgroundColor: themeColors.yellow, elevation: 3 }}
+            className="py-4 rounded-2xl shadow-lg"
+          >
+            <View className="flex-row items-center justify-center">
+              <Icon.LogOut className="w-5 h-5 text-white mr-2" />
+              <Text className="text-white font-semibold text-lg">Sign Out</Text>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Suggest Restaurant Section */}
+        <Animated.View 
+          style={formStyle}
+          className="px-8 mb-8"
+        >
+          <Animated.View>
+          {!showSuggestForm ? (
+            <TouchableOpacity
+              onPress={toggleSuggestForm}
+              style={{ backgroundColor: themeColors.purple, elevation: 3 }}
+              className="py-4 rounded-2xl shadow-lg"
+            >
+              <View className="flex-row items-center justify-center">
+                <Icon.Plus className="w-5 h-5 text-white mr-2" />
+                <Text className="text-white font-semibold text-lg">Suggest a Restaurant</Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <View className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 space-y-4 mx-2">
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-xl font-bold text-gray-800">Suggest Restaurant</Text>
+                <TouchableOpacity onPress={toggleSuggestForm}>
+                  <Icon.X className="w-6 h-6 text-gray-500" />
+                </TouchableOpacity>
+              </View>
+              
+              <Animated.View entering={SlideInRight.delay(100)}>
+                <TextInput
+                  className="border border-gray-200 rounded-xl p-4 text-lg bg-gray-50"
+                  placeholder="Restaurant Name"
+                  value={restaurantName}
+                  onChangeText={setRestaurantName}
+                  placeholderTextColor="#9CA3AF"
+                />
+              </Animated.View>
+              
+              <Animated.View entering={SlideInRight.delay(200)}>
+                <TextInput
+                  className="border border-gray-200 rounded-xl p-4 text-lg bg-gray-50"
+                  placeholder="Restaurant Address"
+                  value={restaurantAddress}
+                  onChangeText={setRestaurantAddress}
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={2}
+                />
+              </Animated.View>
+              
+              <Animated.View entering={SlideInRight.delay(300)}>
+                <TouchableOpacity
+                  onPress={handleRestaurantSubmit}
+                  disabled={suggestLoading}
+                  style={{ backgroundColor: themeColors.purple }}
+                  className="py-4 rounded-xl shadow-lg"
+                >
+                  <View className="flex-row items-center justify-center">
+                    {suggestLoading ? (
+                      <View className="flex-row items-center">
+                        <Animated.View 
+                          style={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: 8,
+                            borderWidth: 2,
+                            borderColor: 'transparent',
+                            borderTopColor: 'white',
+                          }}
+                        />
+                        <Text className="text-white font-semibold text-lg ml-2">
+                          Submitting...
+                        </Text>
+                      </View>
+                    ) : (
+                      <>
+                        <Icon.Send className="w-5 h-5 text-white mr-2" />
+                        <Text className="text-white font-semibold text-lg">Submit Suggestion</Text>
+                      </>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+          )}
+          </Animated.View>
+        </Animated.View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
