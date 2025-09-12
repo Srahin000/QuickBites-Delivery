@@ -2,7 +2,8 @@
   "expo": {
     "name": "Quickbites",
     "slug": "quickbites",
-    "scheme": "com.googleusercontent.apps.202497981968-3vvbdhdrgadicq2cnotm7kt826q0uhfa",
+    "scheme": "com.srahin000.quickbites",
+    "deepLinkScheme": "com.srahin000.quickbites",
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/image.png",
@@ -24,11 +25,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.srahin000.quickbites",
+      "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
       "associatedDomains": [
-        "applinks:quickbites-qk9rfrp0h-sadman-rahins-projects.vercel.app"
+        "applinks:quickbites-delta.vercel.app"
       ]
     },
     "android": {
@@ -48,7 +50,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "quickbites-q9h4.vercel.app"
+              "host": "quickbites-delta.vercel.app"
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]

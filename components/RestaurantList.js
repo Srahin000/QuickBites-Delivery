@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, FlatList, ActivityIndicator, Text } from 'react-native';
-import { supabase } from '../supabaseClient';
+import supabase from "../supabaseClient"
 import RestaurantCard from './restaurantCard';
 import Animated, { 
   FadeIn, 

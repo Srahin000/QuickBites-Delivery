@@ -1,10 +1,9 @@
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, ScrollView, Platform, SafeAreaView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
-import { supabase } from "../supabaseClient";
+import supabase from "../supabaseClient"
 import { themeColors } from "../theme";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { signInWithGoogle } from '../components/googleAuth';
+import { signInWithGoogle, diagnoseOAuthIssues } from '../components/googleAuth';
 
 const SigninScreen = () => {
   const navigation = useNavigation();
@@ -41,8 +40,8 @@ const SigninScreen = () => {
 
     setLoading(true);
     try {
-      // ✅ Use the correct v1 method and get both user and session
-      const { user, session, error } = await supabase.auth.signIn({
+      // Use the modern signInWithPassword method
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -51,27 +50,12 @@ const SigninScreen = () => {
         throw error;
       }
 
-      // ✅ Persist session to AsyncStorage immediately after successful sign in
-      if (session) {
-        try {
-          await AsyncStorage.setItem('supabase.auth.token', JSON.stringify(session));
-          console.log('Session persisted to AsyncStorage after sign in');
-        } catch (storageError) {
-          console.error('Error persisting session:', storageError);
-        }
+      if (data?.session) {
+        console.log('Sign in successful, session:', data.session);
+        Alert.alert("Success", "Signed in successfully!");
       }
-
-      Alert.alert("Success", "Signed in successfully!");
-      const userId = user.id;
-
-      // Fetch user profile (no navigation here, let navigation.js handle it)
-      await supabase
-        .from('users')
-        .select('role')
-        .eq('id', userId)
-        .single();
     } catch (error) {
-      console.error(error);
+      console.error('Sign in error:', error);
       Alert.alert("Error", "Failed to sign in. Please check your credentials and try again.");
     } finally {
       setLoading(false);
@@ -87,27 +71,9 @@ const SigninScreen = () => {
         throw error;
       }
 
-      if (data?.user) {
-        // Store session in AsyncStorage
-        try {
-          const session = supabase.auth.session();
-          if (session) {
-            await AsyncStorage.setItem('supabase.auth.token', JSON.stringify(session));
-            console.log('Google sign-in session persisted to AsyncStorage');
-          }
-        } catch (storageError) {
-          console.error('Error persisting Google sign-in session:', storageError);
-        }
-        
+      if (data?.session) {
+        console.log('Google sign in successful, session:', data.session);
         Alert.alert("Success", "Signed in with Google successfully!");
-        
-        // Fetch user profile (no navigation here, let navigation.js handle it)
-        const userId = data.user.id;
-        await supabase
-          .from('users')
-          .select('role')
-          .eq('id', userId)
-          .single();
       }
     } catch (error) {
       console.error('Google sign-in error:', error);
@@ -179,6 +145,17 @@ const SigninScreen = () => {
               className="rounded-lg p-3 mb-4"
             >
               <Text className="text-white text-center font-semibold text-lg">Sign In with Google</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={async () => {
+                const diagnostics = await diagnoseOAuthIssues();
+                Alert.alert('OAuth Diagnostics', JSON.stringify(diagnostics, null, 2));
+              }}
+              style={{ backgroundColor: '#6b7280' }}
+              className="rounded-lg p-3 mb-4"
+            >
+              <Text className="text-white text-center font-semibold text-lg">Test OAuth Config</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => navigation.navigate("Signup")}>

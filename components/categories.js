@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { supabase } from '../supabaseClient';
+import supabase from "../supabaseClient"
 
 export default function Categories({ activeCategory, setActiveCategory }) {
   const [categories, setCategories] = useState([]);

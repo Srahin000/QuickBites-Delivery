@@ -14,7 +14,7 @@ import {
   Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../supabaseClient";
+import supabase from "../supabaseClient"
 import { useNavigation } from "@react-navigation/native";
 import { useSession } from "../context/SessionContext";
 import Animated, { 

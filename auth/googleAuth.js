@@ -1,6 +1,6 @@
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import { supabase } from '../supabaseClient';
+import supabase from "../supabaseClient"
 
 // Complete the auth session
 WebBrowser.maybeCompleteAuthSession();

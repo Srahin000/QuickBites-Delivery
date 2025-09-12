@@ -13,9 +13,21 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "testflight": {
+      "ios": {
+        "distribution": "store",
+        "autoIncrement": true
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "your-app-store-connect-app-id",
+        "appleTeamId": "your-apple-team-id"
+      }
+    }
   }
 }

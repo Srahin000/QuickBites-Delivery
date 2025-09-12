@@ -1,6 +1,6 @@
 import { View, Text, FlatList, TouchableOpacity, Alert } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../supabaseClient';
+import supabase from "../../supabaseClient"
 import { useNavigation } from '@react-navigation/native';
 import * as Icon from 'react-native-feather';
 

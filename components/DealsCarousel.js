@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
 import { Dimensions } from 'react-native';
-import { supabase } from '../supabaseClient';
+import supabase from "../supabaseClient"
 
 const { width } = Dimensions.get('window');
 

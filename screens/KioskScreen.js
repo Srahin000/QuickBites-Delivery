@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { supabase } from '../supabaseClient';
+import supabase from "../supabaseClient"
 import { themeColors } from '../theme';
 
 export default function KioskScreen() {

@@ -1,4 +1,4 @@
-import { supabase } from '../supabaseClient';
+import { supabase } from "../supabaseClient"
 import * as WebBrowser from 'expo-web-browser';
 
 // Complete the auth session
@@ -7,23 +7,29 @@ WebBrowser.maybeCompleteAuthSession();
 export const signInWithGoogle = async () => {
   try {
     // Step 1: Get the OAuth URL from Supabase
-    const { error, provider, url } = await supabase.auth.signIn({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
+      options: {
+        redirectTo: 'https://quickbites-delta.vercel.app/auth/callback'
+      }
     });
 
     if (error) throw error;
-    if (!url) throw new Error('No OAuth URL returned from Supabase');
+    if (!data.url) throw new Error('No OAuth URL returned from Supabase');
 
     // Step 2: Open the URL in the browser
     const result = await WebBrowser.openAuthSessionAsync(
-      url,
-      'com.googleusercontent.apps.202497981968-3vvbdhdrgadicq2cnotm7kt826q0uhfa://'
+      data.url,
+      'https://quickbites-delta.vercel.app/auth/callback'
     );
 
-    // Step 3: After redirect, Supabase will handle the session automatically
-    // You can check supabase.auth.session() for the new session
-
-    return { data: result, error: null };
+    // Step 3: After redirect, get the session
+    if (result.type === 'success') {
+      const { data: sessionData } = await supabase.auth.getSession();
+      return { data: sessionData, error: null };
+    } else {
+      return { data: null, error: { message: 'User cancelled Google sign in' } };
+    }
   } catch (error) {
     return { data: null, error: { ...error, userMessage: error.message } };
   }

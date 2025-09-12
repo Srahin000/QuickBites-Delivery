@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useState, useEffect } from "react";
-import { supabase } from "../supabaseClient";
+import supabase from "../supabaseClient"
 import { themeColors } from "../theme";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signInWithGoogle } from '../components/googleAuth';

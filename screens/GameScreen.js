@@ -8,7 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { supabase } from '../supabaseClient';
+import supabase from "../supabaseClient"
 import { useSession } from '../context/SessionContext';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');

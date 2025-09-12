@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AppState } from 'react-native';
-import { supabase } from '../supabaseClient-v2';
+import supabase from "../supabaseClient"
 
 const SessionContext = createContext();
 

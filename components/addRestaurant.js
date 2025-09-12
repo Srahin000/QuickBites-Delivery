@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dropdown } from 'react-native-element-dropdown';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import * as ImagePicker from 'expo-image-picker';
-import { supabase } from '../supabaseClient';
+import supabase from "../supabaseClient"
 import mime from 'react-native-mime-types';
 
 export default function AddRestaurant({ onAddRestaurant }) {

@@ -5,7 +5,7 @@ export default async function placeOrder({ cartItems, restaurant, total, orderCo
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   try {
-    const response = await fetch('https://YOUR_PROJECT.functions.supabase.co/create-payment-intent', {
+    const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL || 'https://pgouwzuufnnhthwrewrv.functions.supabase.co'}/create-payment-intent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cartItems, restaurant, total, orderCode }),
@@ -24,6 +24,8 @@ export default async function placeOrder({ cartItems, restaurant, total, orderCo
     // 1. Initialize Payment Sheet
     const { error: initError } = await initPaymentSheet({
       paymentIntentClientSecret,
+      merchantDisplayName: 'QuickBites',
+      returnURL: 'quickbites://stripe-redirect',
     });
 
     if (initError) {

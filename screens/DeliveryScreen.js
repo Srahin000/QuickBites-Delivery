@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, Animated, Easing } from 'react-native';
 import React, { useEffect, useRef } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import {supabase} from '../supabaseClient';
+import {supabase} from "../supabaseClient"
 
 export default function DeliveryScreen() {
   const navigation = useNavigation();

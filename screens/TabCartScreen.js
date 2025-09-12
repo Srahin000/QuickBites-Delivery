@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Icon from 'react-native-feather';
 import { useStripe } from '@stripe/stripe-react-native';
-import { supabase } from '../supabaseClient';
+import supabase from "../supabaseClient"
 import { themeColors } from '../theme';
 import { useCart } from '../context/CartContext';
 import { useSession } from '../context/SessionContext';
@@ -14,6 +14,7 @@ export default function CartScreen() {
   const [selectedTime, setSelectedTime] = useState('10:00 AM');
   const [showDevPay, setShowDevPay] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [timeOverride, setTimeOverride] = useState(false);
 
   const today = new Date();
   const selectedDate = today;
@@ -40,7 +41,7 @@ export default function CartScreen() {
   });
 
   const isWeekday = today.getDay() >= 1 && today.getDay() <= 5;
-  const isOrderAllowed = serviceOpen && isWeekday && filteredTimeSlots.length > 0;
+  const isOrderAllowed = serviceOpen && (timeOverride || (isWeekday && filteredTimeSlots.length > 0));
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -63,12 +64,21 @@ export default function CartScreen() {
         .select('open')
         .eq('id', 2)
         .single();
+
+      const { data: timeOverrideStatus, error: timeOverrideError } = await supabase
+        .from('service_approval')
+        .select('open')
+        .eq('id', 3)
+        .single();
   
       if (prodError) console.error('Error fetching prod status:', prodError);
       else setServiceOpen(prodStatus.open);
   
       if (devError) console.error('Error fetching dev status:', devError);
       else setShowDevPay(!devStatus.open); // 👈 if dev "open" = true, hide Dev Pay
+
+      if (timeOverrideError) console.error('Error fetching time override status:', timeOverrideError);
+      else setTimeOverride(timeOverrideStatus.open); // 👈 if ID 3 "open" = true, bypass time restrictions
     };
   
     fetchServiceStatus();
@@ -243,7 +253,7 @@ export default function CartScreen() {
                   }
 
                   try {
-                    const response = await fetch('https://pgouwzuufnnhthwrewrv.functions.supabase.co/create-payment-intent', {
+                    const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL || 'https://pgouwzuufnnhthwrewrv.functions.supabase.co'}/create-payment-intent`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ cartItems, restaurant, total, orderCode: newOrderCode }),
@@ -292,8 +302,9 @@ export default function CartScreen() {
               <TouchableOpacity
                 onPress={async () => {
                   const devCode = Math.floor(100000 + Math.random() * 900000);
-                  const user = supabase.auth.user();
-                  if (!user) return;
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (!session?.user) return;
+                  const user = session.user;
 
                   const { error } = await supabase.from('orders').insert([
                     {

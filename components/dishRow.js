@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { themeColors } from '../theme';
 import * as Icon from "react-native-feather";
 import { useCart } from '../context/CartContext';
-import { supabase } from '../supabaseClient';
+import supabase from "../supabaseClient"
 
 export default function DishRow({ item, restaurant }) {
   const { addToCart, removeFromCart, cartItems } = useCart();

@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AppState } from 'react-native';
-import { supabase } from '../supabaseClient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import supabase from '../supabaseClient';
 
 const SessionContext = createContext();
 
@@ -10,59 +9,39 @@ export function SessionProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeSession = async () => {
+    // Get initial session
+    const getInitialSession = async () => {
       try {
-        let currentSession = supabase.auth.session();
-        
-        if (!currentSession) {
-          const storedSession = await AsyncStorage.getItem('supabase.auth.token');
-          if (storedSession) {
-            const parsedSession = JSON.parse(storedSession);
-            const now = Math.floor(Date.now() / 1000);
-            if (parsedSession.expires_at > now) {
-              await supabase.auth.setAuth(parsedSession.access_token);
-              currentSession = supabase.auth.session();
-            } else {
-              await AsyncStorage.removeItem('supabase.auth.token');
-            }
-          }
-        }
-        
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         setSession(currentSession);
       } catch (error) {
-        console.error('Error initializing session:', error);
+        console.error('SessionContext: Error getting initial session:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    initializeSession();
+    getInitialSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        console.log('SessionContext: Auth state change:', event, newSession ? 'Session found' : 'No session');
         setSession(newSession);
-        
-        if (newSession) {
-          await AsyncStorage.setItem('supabase.auth.token', JSON.stringify(newSession));
-        } else {
-          await AsyncStorage.removeItem('supabase.auth.token');
-        }
+        setLoading(false);
       }
     );
 
+    // Handle app state changes for session refresh
     const handleAppStateChange = async (nextAppState) => {
       if (nextAppState === 'active') {
-        const currentSession = supabase.auth.session();
-        if (!currentSession) {
-          const storedSession = await AsyncStorage.getItem('supabase.auth.token');
-          if (storedSession) {
-            const parsedSession = JSON.parse(storedSession);
-            const now = Math.floor(Date.now() / 1000);
-            if (parsedSession.expires_at > now) {
-              await supabase.auth.setAuth(parsedSession.access_token);
-              setSession(supabase.auth.session());
-            }
-          }
+        // Refresh session when app becomes active
+        try {
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          console.log('SessionContext: App became active, session:', currentSession ? 'Found' : 'Not found');
+          setSession(currentSession);
+        } catch (error) {
+          console.error('SessionContext: Error refreshing session on app active:', error);
         }
       }
     };
@@ -70,22 +49,31 @@ export function SessionProvider({ children }) {
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
-      authListener?.unsubscribe();
+      subscription?.unsubscribe();
       appStateSubscription?.remove();
     };
   }, []);
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    await AsyncStorage.removeItem('supabase.auth.token');
-    setSession(null);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setSession(null);
+    } catch (error) {
+      console.error('SessionContext: Error signing out:', error);
+      throw error;
+    }
   };
 
-  const refreshSession = () => {
-    const currentSession = supabase.auth.session();
-    setSession(currentSession);
-    return currentSession;
+  const refreshSession = async () => {
+    try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      setSession(currentSession);
+      return currentSession;
+    } catch (error) {
+      console.error('SessionContext: Error refreshing session:', error);
+      return null;
+    }
   };
 
   return (

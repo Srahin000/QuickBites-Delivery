@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quickbites - Thank You</title>
+    <title>Quickbites - Food Delivery App</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -47,27 +47,94 @@
             line-height: 1.6;
             margin-bottom: 2rem;
         }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #502efa;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .download-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .download-btn {
+            background: #502efa;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        .download-btn:hover {
+            background: #3d1fc7;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">🍔</div>
-        <h1>Thank you for signing up for Quickbites!</h1>
-        <p>Redirecting you to the app...</p>
+        <h1>Welcome to Quickbites!</h1>
+        <p>Your favorite food delivery app. Order from the best restaurants in your area.</p>
+        
+        <div class="download-buttons">
+            <a href="https://apps.apple.com/app/quickbites/id123456789" class="download-btn">
+                📱 Download for iOS
+            </a>
+            <a href="https://play.google.com/store/apps/details?id=com.srahin000.quickbites" class="download-btn">
+                🤖 Download for Android
+            </a>
+        </div>
+        
+        <p style="margin-top: 2rem; font-size: 0.9rem; color: #999;">
+            Redirecting to app in <span id="countdown">3</span> seconds...
+        </p>
+        <div class="loading"></div>
     </div>
+    
     <script>
-        // Redirect to the app after 2 seconds
-        setTimeout(function() {
-            window.location.href = 'quickbites://home';
-        }, 2000);
-
-        // Handle universal links for subpaths
-        const path = window.location.pathname;
-        if (path !== '/' && path !== '/index.html') {
-            setTimeout(function() {
-                window.location.href = `quickbites://${path.substring(1)}`;
-            }, 2000);
+        // Countdown timer
+        let countdown = 3;
+        const countdownElement = document.getElementById('countdown');
+        
+        const timer = setInterval(() => {
+            countdown--;
+            countdownElement.textContent = countdown;
+            
+            if (countdown <= 0) {
+                clearInterval(timer);
+                // Try to open the app
+                window.location.href = 'com.srahin000.quickbites://';
+                
+                // Fallback: redirect to app store after 2 seconds
+                setTimeout(() => {
+                    window.location.href = 'https://apps.apple.com/app/quickbites/id123456789';
+                }, 2000);
+            }
+        }, 1000);
+        
+        // Handle OAuth callback if coming from authentication
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessToken = urlParams.get('access_token');
+        const refreshToken = urlParams.get('refresh_token');
+        const error = urlParams.get('error');
+        
+        if (accessToken) {
+            // OAuth success - redirect to app with tokens
+            window.location.href = `com.srahin000.quickbites://auth/success?access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken || '')}`;
+        } else if (error) {
+            // OAuth error - redirect to app with error
+            window.location.href = `com.srahin000.quickbites://auth/error?error=${encodeURIComponent(error)}`;
         }
     </script>
 </body>
-</html> 
+</html>

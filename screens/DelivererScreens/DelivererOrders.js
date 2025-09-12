@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
-import { supabase } from '../../supabaseClient';
+import supabase from "../../supabaseClient"
 import { themeColors } from '../../theme';
 import { useSession } from '../../context/SessionContext';
 

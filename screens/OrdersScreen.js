@@ -1,6 +1,6 @@
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView, RefreshControl } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+import supabase from "../supabaseClient"
 import { useNavigation } from '@react-navigation/native';
 import { themeColors } from '../theme';
 import AnimatedButton from '../components/AnimatedButton';
@@ -14,12 +14,13 @@ export default function OrdersScreen() {
 
   const fetchUserOrders = async () => {
     try {
-      const user = supabase.auth.user();
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
         console.error("No user session found.");
         setLoading(false);
         return;
       }
+      const user = session.user;
 
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
