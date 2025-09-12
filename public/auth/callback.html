@@ -96,21 +96,32 @@
                 return;
             }
 
-            if (accessToken) {
-                console.log('OAuth Success - Access Token received');
-                statusElement.textContent = 'Success!';
-                messageElement.textContent = 'Redirecting you to the app...';
-                
-                // Redirect back to app with success
-                setTimeout(() => {
-                    window.location.href = 'com.srahin000.quickbites://auth/success?access_token=' + encodeURIComponent(accessToken) + '&refresh_token=' + encodeURIComponent(refreshToken || '');
-                }, 1000);
-            } else {
-                console.error('No access token received');
-                statusElement.textContent = 'Authentication Failed';
-                messageElement.textContent = 'No access token received from authentication provider.';
-                loadingElement.style.display = 'none';
+        if (accessToken) {
+            console.log('OAuth Success - Access Token received');
+            statusElement.textContent = 'Success!';
+            messageElement.textContent = 'Redirecting you to the app...';
+            
+            // Store the session data in localStorage for the app to pick up
+            try {
+                localStorage.setItem('supabase_auth_token', accessToken);
+                if (refreshToken) {
+                    localStorage.setItem('supabase_refresh_token', refreshToken);
+                }
+                console.log('Session data stored in localStorage');
+            } catch (e) {
+                console.error('Error storing session data:', e);
             }
+            
+            // Redirect back to app with success
+            setTimeout(() => {
+                window.location.href = 'com.srahin000.quickbites://auth/success?access_token=' + encodeURIComponent(accessToken) + '&refresh_token=' + encodeURIComponent(refreshToken || '');
+            }, 1000);
+        } else {
+            console.error('No access token received');
+            statusElement.textContent = 'Authentication Failed';
+            messageElement.textContent = 'No access token received from authentication provider.';
+            loadingElement.style.display = 'none';
+        }
         }
 
         // Run callback handler when page loads

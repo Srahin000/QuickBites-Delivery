@@ -65,18 +65,27 @@ const SigninScreen = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
+      console.log('🔍 Starting Google sign-in...');
       const { data, error } = await signInWithGoogle();
       
       if (error) {
+        console.error('❌ Google sign-in error:', error);
         throw error;
       }
 
-      if (data?.session) {
-        console.log('Google sign in successful, session:', data.session);
+      if (data) {
+        console.log('✅ Google sign in successful, session:', data);
+        console.log('✅ User email:', data.user?.email);
         Alert.alert("Success", "Signed in with Google successfully!");
+        
+        // The session should now be available in the SessionContext
+        // No need to manually navigate - the Navigation component will handle it
+      } else {
+        console.error('❌ No data returned from Google sign-in');
+        throw new Error('No data returned from Google sign-in');
       }
     } catch (error) {
-      console.error('Google sign-in error:', error);
+      console.error('❌ Google sign-in error:', error);
       
       // Use the improved error message from our helper
       const errorMessage = error.userMessage || error.message || 'Google Sign-In failed. Please try again.';
