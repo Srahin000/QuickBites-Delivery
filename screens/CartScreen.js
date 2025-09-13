@@ -7,14 +7,21 @@ import { useStripe } from '@stripe/stripe-react-native';
 import supabase from "../supabaseClient"
 import { themeColors } from '../theme';
 import { useCart } from '../context/CartContext';
-import { useSession } from '../context/SessionContext';
+import { useSession } from '../context/SessionContext-v2';
+import TimeSlotModal from '../components/TimeSlotModal';
+import LocationModal from '../components/LocationModal';
 
 export default function CartScreen() {
   const [serviceOpen, setServiceOpen] = useState(false);
   const [selectedTime, setSelectedTime] = useState('10:00 AM');
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
+  const [showTimeSlotModal, setShowTimeSlotModal] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const [showDevPay, setShowDevPay] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [timeOverride, setTimeOverride] = useState(false);
+  const [instantPayEnabled, setInstantPayEnabled] = useState(false);
 
   const today = new Date();
   const selectedDate = today;
@@ -32,16 +39,14 @@ export default function CartScreen() {
   const total = subtotal + deliveryFee + tax;
   const isInTab = route.name === 'Cart';
 
-  const deliveryTimeSlots = ['10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM'];
-  const filteredTimeSlots = deliveryTimeSlots.filter(slot => {
-    const hour = parseInt(slot.split(':')[0]);
-    const isPM = slot.includes('PM');
-    const actualHour = isPM && hour !== 12 ? hour + 12 : hour;
-    return actualHour > currentHour;
-  });
+  // Check if time slots are available (will be updated by TimeSlotModal)
+  const hasTimeSlots = selectedTimeSlot !== null;
+  const hasLocation = selectedLocation !== null;
+  const canPlaceOrder = hasTimeSlots && hasLocation;
 
   const isWeekday = today.getDay() >= 1 && today.getDay() <= 5;
-  const isOrderAllowed = serviceOpen && (timeOverride || (isWeekday && filteredTimeSlots.length > 0));
+  const isOrderAllowed = serviceOpen && (timeOverride || (isWeekday && canPlaceOrder));
+  const canUseInstantPay = instantPayEnabled && canPlaceOrder;
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -50,6 +55,24 @@ export default function CartScreen() {
       setRefreshing(false);
     }, 1000);
   }, []);
+
+  const handleTimeSlotSelected = (timeSlot) => {
+    setSelectedTimeSlot(timeSlot);
+    setSelectedTime(timeSlot.time);
+    setShowTimeSlotModal(false);
+  };
+
+  const handleLocationSelected = (location) => {
+    setSelectedLocation(location);
+    setShowLocationModal(false);
+  };
+
+  const formatTime = (timeSlot) => {
+    const hour = timeSlot.hours;
+    const minute = timeSlot.minutes ? timeSlot.minutes.toString().padStart(2, '0') : '00';
+    const ampm = timeSlot.ampm;
+    return `${hour}:${minute} ${ampm}`;
+  };
 
   useEffect(() => {
     const fetchServiceStatus = async () => {
@@ -75,7 +98,10 @@ export default function CartScreen() {
       else setServiceOpen(prodStatus.open);
   
       if (devError) console.error('Error fetching dev status:', devError);
-      else setShowDevPay(!devStatus.open); // 👈 if dev "open" = true, hide Dev Pay
+      else {
+        setShowDevPay(!devStatus.open); // 👈 if dev "open" = true, hide Dev Pay
+        setInstantPayEnabled(devStatus.open); // 👈 if ID 2 "open" = true, enable instant pay
+      }
 
       if (timeOverrideError) console.error('Error fetching time override status:', timeOverrideError);
       else setTimeOverride(timeOverrideStatus.open); // 👈 if ID 3 "open" = true, bypass time restrictions
@@ -284,31 +310,125 @@ export default function CartScreen() {
             <Text className="text-gray-700 font-semibold">Delivery Date:</Text>
             <Text>{selectedDate.toDateString()}</Text>
             <Text className="text-gray-700 font-semibold mt-2">Select Delivery Time:</Text>
-                <View className="border rounded px-3 py-2 bg-white">
-              {filteredTimeSlots.length > 0 ? (
-                filteredTimeSlots.map((slot) => (
-                  <TouchableOpacity
-                    key={slot}
-                    onPress={() => setSelectedTime(slot)}
-                        className={`py-1 ${selectedTime === slot ? 'bg-purple-700 rounded px-2' : ''}`}
-                  >
-                    <Text className={`${selectedTime === slot ? 'text-white' : 'text-black'}`}>{slot}</Text>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <Text className="text-red-600 font-semibold">No delivery slots remaining today</Text>
+            <TouchableOpacity
+              onPress={() => setShowTimeSlotModal(true)}
+              className="border rounded px-3 py-3 bg-white flex-row items-center justify-between"
+            >
+              <View>
+                <Text className="text-gray-900 font-medium">
+                  {selectedTimeSlot ? formatTime(selectedTimeSlot) : 'Tap to select time'}
+                </Text>
+                {selectedTimeSlot && (
+                  <Text className="text-gray-500 text-sm">
+                    {selectedTimeSlot.counter}/10 orders • {selectedTimeSlot.counter >= 10 ? 'Full' : 'Available'}
+                  </Text>
+                )}
+              </View>
+              <Icon.ChevronRight size={20} color="#6B7280" />
+            </TouchableOpacity>
+            
+            {!hasTimeSlots && (
+                <Text className="text-red-600 font-semibold">Please select a delivery time</Text>
               )}
-            </View>
+
+            <Text className="text-gray-700 font-semibold mt-2">Select Delivery Location:</Text>
+            <TouchableOpacity
+              onPress={() => setShowLocationModal(true)}
+              className="border rounded px-3 py-3 bg-white flex-row items-center justify-between"
+            >
+              <View>
+                <Text className="text-gray-900 font-medium">
+                  {selectedLocation ? selectedLocation.location : 'Tap to select location'}
+                </Text>
+                {selectedLocation && (
+                  <Text className="text-gray-500 text-sm">
+                    {selectedLocation.address || selectedLocation.description}
+                  </Text>
+                )}
+              </View>
+              <Icon.ChevronRight size={20} color="#6B7280" />
+            </TouchableOpacity>
+            {!hasLocation && (
+              <Text className="text-red-600 font-semibold">Please select a delivery location</Text>
+            )}
           </View>
           {!isOrderAllowed ? (
             <Text className="text-red-600 text-center text-lg font-semibold">
-              🚫 Service unavailable. Deliveries run Mon–Fri, 10AM–3PM.
-              {'\n'}📢 Check our Instagram for live updates.
+              {!canPlaceOrder ? 
+                'Please select both delivery time and location' :
+                '🚫 Service unavailable. Deliveries run Mon–Fri, 10AM–3PM.\n📢 Check our Instagram for live updates.'
+              }
             </Text>
-          ) : (
+          ) : canPlaceOrder ? (
             <View className="justify-end items-center p-4 space-y-4">
-              {/* 🟢 Place Order Button */}
-              <TouchableOpacity
+              {/* 🟢 Place Order Button - Show regular payment or instant pay based on ID 2 */}
+              {canUseInstantPay ? (
+                <TouchableOpacity
+                  onPress={async () => {
+                    const instantCode = Math.floor(100000 + Math.random() * 900000);
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session?.user) return;
+                    const user = session.user;
+
+                    // Insert order into orders table
+                    const { data: orderData, error: orderError } = await supabase.from('orders').insert([
+                      {
+                        user_id: user.id,
+                        restaurant_id: restaurant.id,
+                        restaurant_name: restaurant.name,
+                        items: cartItems,
+                        total,
+                        status: 'instant-paid',
+                        created_at: new Date(),
+                        order_code: instantCode.toString(),
+                        delivery_location: selectedLocation?.location || "Main Entrance - City College",
+                        delivery_time: selectedTimeSlot?.id || null,
+                      },
+                    ]).select().single();
+
+                    if (orderError) {
+                      console.error("Order insert error:", orderError);
+                      Alert.alert('Error', 'Failed to create order. Please try again.');
+                      return;
+                    }
+
+                    // Insert status into order_status table
+                    const { error: statusError } = await supabase.from('order_status').insert([
+                      {
+                        order_id: orderData.id,
+                        status: 'submitted',
+                        created_at: new Date(),
+                      },
+                    ]);
+
+                    if (statusError) {
+                      console.error("Status insert error:", statusError);
+                      // Don't show error to user as order was created successfully
+                    }
+
+                    clearCart();
+                    navigation.navigate('Delivery', {
+                      restaurant,
+                      orderCode: instantCode,
+                      cartItems,
+                      subtotal,
+                      deliveryFee,
+                      tax,
+                      totalAmount: subtotal + deliveryFee + tax,
+                      selectedLocation,
+                      selectedTimeSlot,
+                    });
+                  }}
+                  className="w-3/4"
+                >
+                  <View style={{ backgroundColor: '#10b981' }} className="rounded-2xl p-4 shadow-lg">
+                    <Text className="text-2xl font-bold text-white text-center">
+                      Instant Pay
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
                 onPress={async () => {
                   let newOrderCode;
                   let isUnique = false;
@@ -338,6 +458,10 @@ export default function CartScreen() {
                   }
 
                   try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session?.user) return;
+                    const user = session.user;
+
                     const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL || 'https://pgouwzuufnnhthwrewrv.functions.supabase.co'}/create-payment-intent`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
@@ -366,9 +490,55 @@ export default function CartScreen() {
                       return Alert.alert('Payment Failed', presentError.message);
                     }
 
+                    // Insert order into orders table
+                    const { data: orderData, error: orderError } = await supabase.from('orders').insert([
+                      {
+                        user_id: user.id,
+                        restaurant_id: restaurant.id,
+                        restaurant_name: restaurant.name,
+                        items: cartItems,
+                        total,
+                        status: 'paid',
+                        created_at: new Date(),
+                        order_code: newOrderCode.toString(),
+                        delivery_location: selectedLocation?.location || "Main Entrance - City College",
+                        delivery_time: selectedTimeSlot?.id || null,
+                      },
+                    ]).select().single();
+
+                    if (orderError) {
+                      console.error("Order insert error:", orderError);
+                      Alert.alert('Error', 'Payment successful but failed to create order. Please contact support.');
+                      return;
+                    }
+
+                    // Insert status into order_status table
+                    const { error: statusError } = await supabase.from('order_status').insert([
+                      {
+                        order_id: orderData.id,
+                        status: 'submitted',
+                        created_at: new Date(),
+                      },
+                    ]);
+
+                    if (statusError) {
+                      console.error("Status insert error:", statusError);
+                      // Don't show error to user as order was created successfully
+                    }
+
                     Alert.alert('Success', 'Your payment was successful!');
                     clearCart();
-                    navigation.navigate('OrderPreparing', { restaurant, orderCode: newOrderCode });
+                    navigation.navigate('Delivery', { 
+                      restaurant, 
+                      orderCode: newOrderCode,
+                      cartItems,
+                      subtotal,
+                      deliveryFee,
+                      tax,
+                      totalAmount: subtotal + deliveryFee + tax,
+                      selectedLocation,
+                      selectedTimeSlot,
+                    });
                   } catch (error) {
                     console.error('Payment error:', error);
                     Alert.alert('Network error', error.message);
@@ -382,58 +552,29 @@ export default function CartScreen() {
                   </Text>
                 </View>
               </TouchableOpacity>
-              {/* 🔧 Dev Pay Button */}
-              {showDevPay && (
-              <TouchableOpacity
-                onPress={async () => {
-                  const devCode = Math.floor(100000 + Math.random() * 900000);
-                  const { data: { session } } = await supabase.auth.getSession();
-                  if (!session?.user) return;
-                  const user = session.user;
-
-                  const { error } = await supabase.from('orders').insert([
-                    {
-                      user_id: user.id,
-                      restaurant_id: restaurant.id,
-                      restaurant_name: restaurant.name,
-                      items: cartItems,
-                      total,
-                      status: 'dev-paid',
-                      created_at: new Date(),
-                      order_code: devCode.toString(),
-                    },
-                  ]);
-
-                  if (!error) {
-                    clearCart();
-                    navigation.navigate('OrderPreparing', {
-                      restaurant,
-                      orderCode: devCode,
-                      cartItems,
-                      subtotal,
-                      deliveryFee,
-                      tax,
-                      totalAmount: subtotal + deliveryFee + tax,
-                    });
-                  } else {
-                    console.error("Order insert error:", error);
-                  }
-                }}
-                className="w-3/4"
-              >
-                    <View style={{ backgroundColor: '#10b981' }} className="rounded-2xl p-4 shadow-lg">
-                      <Text className="text-2xl font-bold text-white text-center">
-                    Dev Instant Pay
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
+              )}
             </View>
-          )}
+          ) : null}
         </View>
       )}
         </ScrollView>
       </View>
+      
+      {/* Time Slot Modal */}
+      <TimeSlotModal
+        visible={showTimeSlotModal}
+        onClose={() => setShowTimeSlotModal(false)}
+        onTimeSelected={handleTimeSlotSelected}
+        restaurantId={restaurant?.id}
+      />
+
+      {/* Location Modal */}
+      <LocationModal
+        visible={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        onLocationSelected={handleLocationSelected}
+        restaurantId={restaurant?.id}
+      />
     </SafeAreaView>
   );
 }

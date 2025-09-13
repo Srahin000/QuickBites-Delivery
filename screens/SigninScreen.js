@@ -3,7 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
 import supabase from "../supabaseClient"
 import { themeColors } from "../theme";
-import { signInWithGoogle, diagnoseOAuthIssues } from '../components/googleAuth';
+import { signInWithGoogle } from '../components/googleAuth';
 
 const SigninScreen = () => {
   const navigation = useNavigation();
@@ -100,6 +100,10 @@ const SigninScreen = () => {
     }
   };
 
+  const handleForgotPassword = () => {
+    navigation.navigate("ForgotPassword");
+  };
+
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.purple }}>
     <KeyboardAvoidingView 
@@ -156,16 +160,6 @@ const SigninScreen = () => {
               <Text className="text-white text-center font-semibold text-lg">Sign In with Google</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={async () => {
-                const diagnostics = await diagnoseOAuthIssues();
-                Alert.alert('OAuth Diagnostics', JSON.stringify(diagnostics, null, 2));
-              }}
-              style={{ backgroundColor: '#6b7280' }}
-              className="rounded-lg p-3 mb-4"
-            >
-              <Text className="text-white text-center font-semibold text-lg">Test OAuth Config</Text>
-            </TouchableOpacity>
 
             <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
               <Text className="text-center text-gray-600">
@@ -173,6 +167,15 @@ const SigninScreen = () => {
                 <Text style={{ color: themeColors.purple }} className="font-semibold">
                   Create Account
                 </Text>
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleForgotPassword}
+              className="mt-4"
+            >
+              <Text className="text-center" style={{ color: themeColors.purple }}>
+                Forgot Password?
               </Text>
             </TouchableOpacity>
         </View>

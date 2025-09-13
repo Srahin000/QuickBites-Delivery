@@ -5,7 +5,7 @@ import supabase from "../supabaseClient"
 import * as Icon from 'react-native-feather';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function OrderDetails() {
+export default function OrderHistoryDetails() {
   let route, navigation, orderId, isHistory;
   
   try {
@@ -14,7 +14,7 @@ export default function OrderDetails() {
     orderId = route?.params?.orderId;
     isHistory = route?.params?.isHistory || false; // Default to false if not provided
   } catch (error) {
-    console.error('OrderDetails: Navigation error:', error);
+    console.error('OrderHistoryDetails: Navigation error:', error);
     return (
       <View className="flex-1 justify-center items-center">
         <Text className="text-gray-600">Navigation Error</Text>
@@ -104,12 +104,13 @@ export default function OrderDetails() {
           if (navigation.canGoBack()) {
             navigation.goBack();
           } else {
-            navigation.navigate('MainTabs', { screen: 'Orders' });
+            navigation.navigate(isHistory ? 'OrderHistory' : 'MainTabs', { screen: 'Orders' });
           }
         }}
       >
         <Icon.ArrowLeft stroke="#502efa" strokeWidth={2.5} height={28} width={28} />
       </TouchableOpacity>
+      
       <View style={{
         flex: 1,
         backgroundColor: '#fff',
@@ -125,17 +126,21 @@ export default function OrderDetails() {
         elevation: 8,
       }}>
         <ScrollView showsVerticalScrollIndicator={false}>
-      <Text className="text-xl font-bold mb-2">Order #{order.order_code}</Text>
-      <Text className="text-sm text-gray-500 mb-4">Status: {status}</Text>
-      <Text className="text-lg font-semibold mb-2">Restaurant: {order.restaurant_name}</Text>
-      <Text className="text-base font-semibold mb-2">Items:</Text>
+          <Text className="text-xl font-bold mb-2">Order #{order.order_code}</Text>
+          <Text className="text-sm text-gray-500 mb-4">
+            Status: {status}
+          </Text>
+          <Text className="text-lg font-semibold mb-2">Restaurant: {order.restaurant_name}</Text>
+          
+          <Text className="text-base font-semibold mb-2">Items:</Text>
           {order.items && order.items.map((item, index) => (
-        <View key={index} className="mb-3 border-b pb-2">
-          <Text className="font-semibold">{item.name} x{item.quantity}</Text>
-          <Text className="text-sm text-gray-600">${item.price} each</Text>
-        </View>
-      ))}
-      <Text className="text-lg font-bold mt-4">Total: ${order.total}</Text>
+            <View key={index} className="mb-3 border-b pb-2">
+              <Text className="font-semibold">{item.name} x{item.quantity}</Text>
+              <Text className="text-sm text-gray-600">${item.price} each</Text>
+            </View>
+          ))}
+          
+          <Text className="text-lg font-bold mt-4">Total: ${order.total}</Text>
           <Text className="text-sm text-gray-500 mt-2">
             Ordered on {new Date(order.created_at).toLocaleString()}
           </Text>
@@ -162,7 +167,7 @@ export default function OrderDetails() {
               </Text>
             </View>
           )}
-    </ScrollView>
+        </ScrollView>
       </View>
     </SafeAreaView>
   );

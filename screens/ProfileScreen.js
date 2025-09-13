@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import supabase from "../supabaseClient"
 import { useNavigation } from "@react-navigation/native";
-import { useSession } from "../context/SessionContext";
+import { useSession } from "../context/SessionContext-v2";
 import Animated, { 
   FadeIn, 
   FadeInDown, 
@@ -44,6 +44,11 @@ export default function ProfileScreen() {
   const [showSuggestForm, setShowSuggestForm] = useState(false);
   const [restaurantName, setRestaurantName] = useState('');
   const [restaurantAddress, setRestaurantAddress] = useState('');
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
 
   // Animation values
   const headerOpacity = useSharedValue(0);
@@ -119,6 +124,57 @@ export default function ProfileScreen() {
     formTranslateY.value = withSpring(showSuggestForm ? 50 : 0, { damping: 15 });
   };
 
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert("Error", "Please fill in all fields.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Error", "New passwords do not match.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      Alert.alert("Error", "New password must be at least 6 characters long.");
+      return;
+    }
+
+    setChangePasswordLoading(true);
+    try {
+      // First, verify the current password by attempting to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: profile.email,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        Alert.alert("Error", "Current password is incorrect.");
+        return;
+      }
+
+      // Update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      Alert.alert("Success", "Password updated successfully!");
+      setShowChangePassword(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error("Password change error:", error);
+      Alert.alert("Error", "Failed to change password. Please try again.");
+    } finally {
+      setChangePasswordLoading(false);
+    }
+  };
+
   // Animated styles
   const headerStyle = useAnimatedStyle(() => ({
     opacity: headerOpacity.value,
@@ -181,7 +237,7 @@ export default function ProfileScreen() {
         className="flex-1"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40, backgroundColor: 'white' }}
+        contentContainerStyle={{ paddingBottom: 0, backgroundColor: 'white', flexGrow: 1 }}
       >
 
         {/* Profile Details */}
@@ -217,8 +273,83 @@ export default function ProfileScreen() {
           </Animated.View>
         </View>
 
+        {/* Change Password Section */}
+        <Animated.View entering={FadeInUp.delay(700)} className="px-8 mb-4">
+          {!showChangePassword ? (
+            <TouchableOpacity
+              onPress={() => setShowChangePassword(true)}
+              style={{ backgroundColor: themeColors.purple, elevation: 3 }}
+              className="py-4 rounded-2xl shadow-lg"
+            >
+              <View className="flex-row items-center justify-center">
+                <Icon.Key className="w-5 h-5 text-white mr-2" />
+                <Text className="text-white font-semibold text-lg">Change Password</Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <View className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 space-y-4">
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-xl font-bold text-gray-800">Change Password</Text>
+                <TouchableOpacity onPress={() => setShowChangePassword(false)}>
+                  <Icon.X className="w-6 h-6 text-gray-500" />
+                </TouchableOpacity>
+              </View>
+              
+              <TextInput
+                className="border border-gray-200 rounded-xl p-4 text-lg bg-gray-50"
+                placeholder="Current Password"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry
+                placeholderTextColor="#9CA3AF"
+              />
+              
+              <TextInput
+                className="border border-gray-200 rounded-xl p-4 text-lg bg-gray-50"
+                placeholder="New Password"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+                placeholderTextColor="#9CA3AF"
+              />
+              
+              <TextInput
+                className="border border-gray-200 rounded-xl p-4 text-lg bg-gray-50"
+                placeholder="Confirm New Password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                placeholderTextColor="#9CA3AF"
+              />
+              
+              <TouchableOpacity
+                onPress={handleChangePassword}
+                disabled={changePasswordLoading}
+                style={{ backgroundColor: themeColors.purple }}
+                className="py-4 rounded-xl shadow-lg"
+              >
+                <View className="flex-row items-center justify-center">
+                  {changePasswordLoading ? (
+                    <View className="flex-row items-center">
+                      <ActivityIndicator size="small" color="white" />
+                      <Text className="text-white font-semibold text-lg ml-2">
+                        Updating...
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Icon.Check className="w-5 h-5 text-white mr-2" />
+                      <Text className="text-white font-semibold text-lg">Update Password</Text>
+                    </>
+                  )}
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+        </Animated.View>
+
         {/* Sign Out Button */}
-        <Animated.View entering={FadeInUp.delay(700)} className="px-8">
+        <Animated.View entering={FadeInUp.delay(800)} className="px-8">
           <TouchableOpacity
             onPress={handleSignOut}
             style={{ backgroundColor: themeColors.yellow, elevation: 3 }}

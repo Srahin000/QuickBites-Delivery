@@ -2,7 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Text, View, TextInput, ScrollView } from 'react-native';
 import Navigation from './navigation';
 import { CartProvider } from './context/CartContext';
-import { SessionProvider } from './context/SessionContext';
+import { SessionProvider } from './context/SessionContext-v2';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';

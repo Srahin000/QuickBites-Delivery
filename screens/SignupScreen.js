@@ -76,7 +76,7 @@ const SignupScreen = () => {
 
   // ✅ Also handle real-time SIGNED_IN events (Google or manual login)
   useEffect(() => {
-    const { data: subscription } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === "SIGNED_IN") {
           const user = session?.user;
@@ -122,7 +122,11 @@ const SignupScreen = () => {
       }
     );
 
-    return () => subscription?.unsubscribe();
+    return () => {
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+      }
+    };
   }, [firstName, lastName, schoolName, schoolYear, major, role]);
 
   const handleSignUp = async () => {

@@ -18,7 +18,7 @@ import Animated, {
 import * as Icon from "react-native-feather";
 import LoadingSpinner from './LoadingSpinner';
 
-export default function RestaurantList({ category, searchQuery }) {
+export default function RestaurantList({ category, searchQuery, hasActiveOrder }) {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,6 +79,16 @@ export default function RestaurantList({ category, searchQuery }) {
 
   const ListHeader = () => (
     <Animated.View entering={FadeInDown.delay(200)} className="pt-4 pb-2">
+      {hasActiveOrder && (
+        <View className="mx-4 mb-4 p-4 bg-orange-50 border border-orange-200 rounded-xl">
+          <View className="flex-row items-center">
+            <Icon.AlertCircle size={20} color="#F59E0B" />
+            <Text className="text-orange-800 font-semibold ml-2 flex-1">
+              You have an active order. Complete it before placing a new one.
+            </Text>
+          </View>
+        </View>
+      )}
       <View className="flex-row items-center justify-between px-4 mb-4">
         <View>
           <Text className="text-2xl font-bold text-gray-800">

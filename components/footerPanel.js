@@ -13,7 +13,6 @@ import { themeColors } from '../theme';
 
 const Tab = createBottomTabNavigator();
 
-
 export default function FooterPanel() {
   
   return (
@@ -38,10 +37,28 @@ export default function FooterPanel() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Trigger refresh when Home tab is pressed
+            navigation.navigate('Home', { refresh: Date.now() });
+          },
+        })}
+      />
       <Tab.Screen name="Cart" component={TabCartScreen} />
       <Tab.Screen name="Rewards" component={RewardsScreen} />
-      <Tab.Screen name="Orders" component={OrdersScreen} />
+      <Tab.Screen 
+        name="Orders" 
+        component={OrdersScreen}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Trigger refresh when Orders tab is pressed
+            navigation.navigate('Orders', { refresh: Date.now() });
+          },
+        })}
+      />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

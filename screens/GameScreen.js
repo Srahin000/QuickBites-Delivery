@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import supabase from "../supabaseClient"
-import { useSession } from '../context/SessionContext';
+import { useSession } from '../context/SessionContext-v2';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CELL_SIZE = 20;

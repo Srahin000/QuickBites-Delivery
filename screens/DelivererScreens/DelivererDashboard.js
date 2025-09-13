@@ -31,8 +31,26 @@ export default function DelivererDashboard() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="My Deliveries" component={DelivererMyDeliveries} />
-      <Tab.Screen name="Available Orders" component={DelivererOrders} />
+      <Tab.Screen 
+        name="My Deliveries" 
+        component={DelivererMyDeliveries}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Trigger refresh when My Deliveries tab is pressed
+            navigation.navigate('My Deliveries', { refresh: Date.now() });
+          },
+        })}
+      />
+      <Tab.Screen 
+        name="Available Orders" 
+        component={DelivererOrders}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Trigger refresh when Available Orders tab is pressed
+            navigation.navigate('Available Orders', { refresh: Date.now() });
+          },
+        })}
+      />
       <Tab.Screen name="Map" component={DelivererMap} />
       <Tab.Screen name="Profile" component={DelivererProfile} />
     </Tab.Navigator>

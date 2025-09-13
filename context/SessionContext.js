@@ -24,13 +24,20 @@ export function SessionProvider({ children }) {
     getInitialSession();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        console.log('SessionContext: Auth state change:', event, newSession ? 'Session found' : 'No session');
-        setSession(newSession);
-        setLoading(false);
-      }
-    );
+    let subscription = null;
+    try {
+      const authStateChange = supabase.auth.onAuthStateChange(
+        (event, newSession) => {
+          console.log('SessionContext: Auth state change:', event, newSession ? 'Session found' : 'No session');
+          setSession(newSession);
+          setLoading(false);
+        }
+      );
+      subscription = authStateChange.data?.subscription;
+      console.log('SessionContext: Created subscription:', typeof subscription, subscription);
+    } catch (error) {
+      console.error('SessionContext: Error setting up auth state listener:', error);
+    }
 
     // Handle app state changes for session refresh
     const handleAppStateChange = async (nextAppState) => {
@@ -49,8 +56,25 @@ export function SessionProvider({ children }) {
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
-      subscription?.unsubscribe();
-      appStateSubscription?.remove();
+      console.log('SessionContext: Cleanup - subscription type:', typeof subscription);
+      try {
+        if (subscription && typeof subscription.unsubscribe === 'function') {
+          subscription.unsubscribe();
+          console.log('SessionContext: Successfully unsubscribed');
+        } else {
+          console.log('SessionContext: Subscription is not valid for unsubscribe');
+        }
+      } catch (unsubscribeError) {
+        console.error('SessionContext: Error during unsubscribe:', unsubscribeError);
+      }
+      
+      try {
+        if (appStateSubscription && typeof appStateSubscription.remove === 'function') {
+          appStateSubscription.remove();
+        }
+      } catch (removeError) {
+        console.error('SessionContext: Error removing app state subscription:', removeError);
+      }
     };
   }, []);
 

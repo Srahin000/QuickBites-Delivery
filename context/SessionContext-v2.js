@@ -24,13 +24,19 @@ export function SessionProvider({ children }) {
     getInitialSession();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        console.log('SessionContext: Auth state change:', event);
-        setSession(newSession);
-        setLoading(false);
-      }
-    );
+    let subscription;
+    try {
+      const { data } = supabase.auth.onAuthStateChange(
+        (event, newSession) => {
+          console.log('SessionContext: Auth state change:', event);
+          setSession(newSession);
+          setLoading(false);
+        }
+      );
+      subscription = data?.subscription;
+    } catch (error) {
+      console.error('SessionContext: Error setting up auth state listener:', error);
+    }
 
     // Handle app state changes for session refresh
     const handleAppStateChange = async (nextAppState) => {
@@ -50,8 +56,12 @@ export function SessionProvider({ children }) {
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
-      subscription?.unsubscribe();
-      appStateSubscription?.remove();
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+      }
+      if (appStateSubscription) {
+        appStateSubscription.remove();
+      }
     };
   }, []);
 

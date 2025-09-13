@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Linking from 'expo-linking';
 import { ActivityIndicator, View } from 'react-native';
-import { useSession } from './context/SessionContext';
+import { useSession } from './context/SessionContext-v2';
 import { supabase } from './supabaseClient';
 
 // Screens
 import FooterPanel from './components/footerPanel';
 import SignupScreen from './screens/SignupScreen';
 import SigninScreen from './screens/SigninScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import AdminDashboardScreen from './screens/AdminScreens/AdminDashboardScreen';
 import AddRestaurantsScreen from './screens/AdminScreens/AddRestaurantsScreen';
 import EditRestaurantsScreen from './screens/AdminScreens/EditRestaurantsScreen';
@@ -21,11 +23,13 @@ import DeliveryScreen from './screens/DeliveryScreen';
 import RestaurantScreen from './screens/RestaurantScreen';
 import CartScreen from './screens/CartScreen';
 import OrderDetails from './screens/OrderDetails';
+import OrderHistoryScreen from './screens/OrderHistoryScreen';
+import OrderHistoryDetails from './screens/OrderHistoryDetails';
 import GameScreen from './screens/GameScreen';
 import KioskScreen from './screens/KioskScreen';
 import DelivererDashboard from './screens/DelivererScreens/DelivererDashboard';
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 const linking = {
   prefixes: [
@@ -110,6 +114,8 @@ export default function Navigation() {
           <>
             <Stack.Screen name="Signup" component={SignupScreen} />
             <Stack.Screen name="Signin" component={SigninScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
           </>
         ) : role === 'admin' ? (
           <>
@@ -122,6 +128,8 @@ export default function Navigation() {
             <Stack.Screen name="Restaurant" component={RestaurantScreen} />
             <Stack.Screen name="Cart" options={{ presentation: 'modal' }} component={CartScreen} />
             <Stack.Screen name="OrderDetails" options={{ presentation: 'modal' }} component={OrderDetails} />
+            <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+            <Stack.Screen name="OrderHistoryDetails" options={{ presentation: 'modal' }} component={OrderHistoryDetails} />
             <Stack.Screen name="GameScreen" component={GameScreen} />
             <Stack.Screen name="OrderPreparing" options={{ presentation: 'fullScreenModal' }} component={OrderPreparingScreen} />
             <Stack.Screen name="Delivery" options={{ presentation: 'fullScreenModal' }} component={DeliveryScreen} />
@@ -133,6 +141,8 @@ export default function Navigation() {
             <Stack.Screen name="Restaurant" component={RestaurantScreen} />
             <Stack.Screen name="Cart" options={{ presentation: 'modal' }} component={CartScreen} />
             <Stack.Screen name="OrderDetails" options={{ presentation: 'modal' }} component={OrderDetails} />
+            <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+            <Stack.Screen name="OrderHistoryDetails" options={{ presentation: 'modal' }} component={OrderHistoryDetails} />
             <Stack.Screen name="GameScreen" component={GameScreen} />
             <Stack.Screen name="OrderPreparing" options={{ presentation: 'fullScreenModal' }} component={OrderPreparingScreen} />
             <Stack.Screen name="Delivery" options={{ presentation: 'fullScreenModal' }} component={DeliveryScreen} />
@@ -151,10 +161,15 @@ export default function Navigation() {
             <Stack.Screen name="Restaurant" component={RestaurantScreen} />
             <Stack.Screen name="Cart" options={{ presentation: 'modal' }} component={CartScreen} />
             <Stack.Screen name="OrderDetails" options={{ presentation: 'modal' }} component={OrderDetails} />
+            <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+            <Stack.Screen name="OrderHistoryDetails" options={{ presentation: 'modal' }} component={OrderHistoryDetails} />
             <Stack.Screen name="GameScreen" component={GameScreen} />
             <Stack.Screen name="OrderPreparing" options={{ presentation: 'fullScreenModal' }} component={OrderPreparingScreen} />
             <Stack.Screen name="Delivery" options={{ presentation: 'fullScreenModal' }} component={DeliveryScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="Signin" component={SigninScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
           </>
         )}
       </Stack.Navigator>

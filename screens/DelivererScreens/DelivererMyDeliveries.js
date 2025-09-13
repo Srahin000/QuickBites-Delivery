@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import supabase from "../../supabaseClient"
 import { themeColors } from '../../theme';
-import { useSession } from '../../context/SessionContext';
+import { useSession } from '../../context/SessionContext-v2';
 
 const STATUS_OPTIONS = [
   'processing',
-  'on the way',
+  'ready to pickup',
   'delivered',
 ];
 
@@ -16,9 +17,12 @@ export default function DelivererMyDeliveries() {
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState({});
   const { session } = useSession();
+  const navigation = useNavigation();
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  const fetchOrders = async (isRefresh = false) => {
+    if (!isRefresh) {
+      setLoading(true);
+    }
     try {
       if (!session?.user) throw new Error('Not logged in');
       // Fetch orders assigned to this deliverer and not delivered
@@ -59,18 +63,35 @@ export default function DelivererMyDeliveries() {
       setOrders(ordersWithStatus);
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to fetch orders');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setLoading(false);
-    setRefreshing(false);
   };
 
   useEffect(() => {
     fetchOrders();
   }, [session?.user?.id]);
 
+  // Listen for refresh parameter from tab press
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('state', (e) => {
+      const state = e.data.state;
+      if (state && state.routes) {
+        const currentRoute = state.routes[state.index];
+        if (currentRoute.name === 'My Deliveries' && currentRoute.params?.refresh) {
+          // Tab was pressed, trigger refresh
+          onRefresh();
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchOrders();
+    await fetchOrders(true);
   };
 
   const updateStatus = async (orderId, newStatus) => {

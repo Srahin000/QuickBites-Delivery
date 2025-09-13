@@ -10,7 +10,7 @@ import {
   StyleSheet 
 } from 'react-native';
 import { themeColors } from '../../theme';
-import { useSession } from '../../context/SessionContext';
+import { useSession } from '../../context/SessionContext-v2';
 import * as Icon from 'react-native-feather';
 
 export default function DelivererProfile() {
