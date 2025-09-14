@@ -141,5 +141,19 @@
             This is a mobile app. Please download it from your app store.
         </p>
     </div>
+
+    <script>
+        // Check if there are tokens in the hash fragment and redirect to reset password
+        document.addEventListener('DOMContentLoaded', function() {
+            const hash = window.location.hash;
+            
+            // Check if there's an access_token in the hash
+            if (hash && hash.includes('access_token=')) {
+                console.log('Tokens found in hash, redirecting to reset password page...');
+                // Redirect to reset password page with the hash fragment
+                window.location.href = '/reset-password' + hash;
+            }
+        });
+    </script>
 </body>
 </html>
