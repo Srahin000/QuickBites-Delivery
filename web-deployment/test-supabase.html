@@ -27,9 +27,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // REPLACE THESE WITH YOUR ACTUAL SUPABASE VALUES
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
+        // Supabase configuration - Will be loaded from API
+        let SUPABASE_URL = '';
+        let SUPABASE_ANON_KEY = '';
         
         const resultsDiv = document.getElementById('results');
         
@@ -40,7 +40,29 @@
             resultsDiv.appendChild(div);
         }
         
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                SUPABASE_URL = config.supabaseUrl;
+                SUPABASE_ANON_KEY = config.supabaseAnonKey;
+                addResult(`✅ Config loaded - URL: ${SUPABASE_URL ? 'Set' : 'Missing'}, Key: ${SUPABASE_ANON_KEY ? 'Set' : 'Missing'}`, 'success');
+                return true;
+            } catch (error) {
+                addResult(`❌ Failed to load config: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
         async function testSupabase() {
+            addResult('Loading configuration...', 'info');
+            
+            // Load config first
+            const configLoaded = await loadConfig();
+            if (!configLoaded) {
+                return;
+            }
+            
             addResult('Testing Supabase connection...', 'info');
             
             try {
