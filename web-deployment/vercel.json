@@ -4,6 +4,10 @@
     {
       "src": "*.html",
       "use": "@vercel/static"
+    },
+    {
+      "src": "api/*.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -18,6 +22,10 @@
     {
       "src": "/auth/callback",
       "dest": "/auth/callback.html"
+    },
+    {
+      "src": "/api/config",
+      "dest": "/api/config.js"
     }
   ]
 }
