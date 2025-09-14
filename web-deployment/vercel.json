@@ -24,6 +24,10 @@
       "dest": "/api/config.js"
     },
     {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }

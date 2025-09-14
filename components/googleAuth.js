@@ -8,7 +8,7 @@ export const signInWithGoogle = async () => {
   try {
     console.log('🔍 Starting Google OAuth...');
     
-    // Step 1: Get the OAuth URL from Supabase
+    // Use Supabase's built-in OAuth
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -28,7 +28,7 @@ export const signInWithGoogle = async () => {
 
     console.log('✅ OAuth URL received:', data.url);
 
-    // Step 2: Open the URL in the browser
+    // Open the OAuth URL in the browser
     const result = await WebBrowser.openAuthSessionAsync(
       data.url,
       'https://pgouwzuufnnhthwrewrv.supabase.co/auth/v1/callback'
@@ -36,62 +36,26 @@ export const signInWithGoogle = async () => {
 
     console.log('🔍 OAuth Result:', result);
 
-    // Step 3: Handle the result
     if (result.type === 'success') {
       console.log('✅ OAuth successful, checking session...');
-      console.log('🔍 OAuth result URL:', result.url);
       
-      // Extract the URL parameters from the OAuth result
-      const url = new URL(result.url);
-      const accessToken = url.searchParams.get('access_token');
-      const refreshToken = url.searchParams.get('refresh_token');
-      const error = url.searchParams.get('error');
+      // Wait a moment for Supabase to process the OAuth callback
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      if (error) {
-        console.error('❌ OAuth Error in URL:', error);
-        throw new Error(`OAuth error: ${error}`);
+      // Check if we have a session
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('❌ Session Error:', sessionError);
+        throw sessionError;
       }
       
-      if (accessToken) {
-        console.log('✅ Access token found, setting session...');
-        
-        // Set the session manually using the access token
-        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || ''
-        });
-        
-        if (sessionError) {
-          console.error('❌ Session Error:', sessionError);
-          throw sessionError;
-        }
-        
-        if (sessionData.session) {
-          console.log('✅ Session established:', sessionData.session.user.email);
-          return { data: sessionData.session, error: null };
-        } else {
-          console.error('❌ No session created from tokens');
-          throw new Error('No session created from OAuth tokens');
-        }
+      if (sessionData.session) {
+        console.log('✅ Session established:', sessionData.session.user.email);
+        return { data: sessionData.session, error: null };
       } else {
-        // Fallback: wait and check for session
-        console.log('⚠️ No access token in URL, waiting for session...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error('❌ Session Error:', sessionError);
-          throw sessionError;
-        }
-        
-        if (sessionData.session) {
-          console.log('✅ Session found after waiting:', sessionData.session.user.email);
-          return { data: sessionData.session, error: null };
-        } else {
-          console.error('❌ No session found after OAuth');
-          throw new Error('No session found after OAuth');
-        }
+        console.error('❌ No session found after OAuth');
+        throw new Error('No session found after OAuth');
       }
     } else if (result.type === 'cancel') {
       console.log('❌ OAuth cancelled by user');
