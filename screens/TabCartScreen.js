@@ -444,16 +444,45 @@ export default function CartScreen() {
                     if (!session?.user) return;
                     const user = session.user;
 
+                    // Get the session token for authorization
+                    const token = session?.access_token;
+                    
+                    if (!token) {
+                      console.error('No session token found');
+                      return Alert.alert('Authentication Error', 'Please sign in again to continue.');
+                    }
+
+                    console.log('Creating payment intent for order:', newOrderCode, 'Total:', total);
+                    console.log('Stripe publishable key:', process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY?.substring(0, 20) + '...');
+                    console.log('Is test key:', process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith('pk_test_'));
+                    console.log('Is live key:', process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith('pk_live_'));
+                    
                     const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL || 'https://pgouwzuufnnhthwrewrv.functions.supabase.co'}/create-payment-intent`, {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
                       body: JSON.stringify({ cartItems, restaurant, total, orderCode: newOrderCode }),
                     });
 
                     const data = await response.json();
-                    if (!response.ok) return Alert.alert('Error', data.message || 'Something went wrong.');
+                    console.log('Payment intent response:', data);
+                    
+                    if (!response.ok) {
+                      console.error('Payment intent creation failed:', data);
+                      return Alert.alert('Payment Error', data.message || 'Failed to create payment. Please try again.');
+                    }
 
-                    const { paymentIntentClientSecret } = data;
+                    const { paymentIntentClientSecret, paymentIntentId } = data;
+                    
+                    if (!paymentIntentClientSecret) {
+                      console.error('No payment intent client secret received');
+                      return Alert.alert('Payment Error', 'Invalid payment response. Please try again.');
+                    }
+                    
+                    console.log('Payment intent created:', paymentIntentId);
+                    console.log('Initializing payment sheet with client secret:', paymentIntentClientSecret?.substring(0, 20) + '...');
 
                     const { error: initError } = await initPaymentSheet({
                       paymentIntentClientSecret,
@@ -461,11 +490,21 @@ export default function CartScreen() {
                       returnURL: 'quickbites://stripe-redirect',
                     });
 
-                    if (initError) return Alert.alert('Error', initError.message);
+                    if (initError) {
+                      console.error('Payment sheet init error:', initError);
+                      console.error('Error code:', initError.code);
+                      console.error('Error message:', initError.message);
+                      return Alert.alert('Payment Setup Error', `Failed to initialize payment: ${initError.message}`);
+                    }
 
+                    console.log('Presenting payment sheet...');
                     const { error: presentError } = await presentPaymentSheet();
 
                     if (presentError) {
+                      console.error('Payment presentation error:', presentError);
+                      console.error('Error code:', presentError.code);
+                      console.error('Error message:', presentError.message);
+                      
                       if (presentError.code === 'Canceled') {
                         return Alert.alert('Payment Cancelled', 'You cancelled the payment.');
                       }
@@ -506,6 +545,26 @@ export default function CartScreen() {
                     if (statusError) {
                       console.error("Status insert error:", statusError);
                       // Don't show error to user as order was created successfully
+                    }
+
+                    // Increment the time slot counter after successful payment
+                    if (selectedTimeSlot?.id) {
+                      try {
+                        const { error: counterError } = await supabase
+                          .from('delivery_times')
+                          .update({ counter: selectedTimeSlot.counter + 1 })
+                          .eq('id', selectedTimeSlot.id);
+
+                        if (counterError) {
+                          console.error('Error updating time slot counter:', counterError);
+                          // Don't show error to user as payment was successful
+                        } else {
+                          console.log('Time slot counter incremented successfully');
+                        }
+                      } catch (err) {
+                        console.error('Error updating time slot counter:', err);
+                        // Don't show error to user as payment was successful
+                      }
                     }
 
                     Alert.alert('Success', 'Your payment was successful!');

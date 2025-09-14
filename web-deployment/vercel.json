@@ -17,7 +17,12 @@
     },
     {
       "src": "/auth/callback",
-      "dest": "/auth/callback.html"
+      "dest": "/auth/callback.html",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
     },
     {
       "src": "/api/config",

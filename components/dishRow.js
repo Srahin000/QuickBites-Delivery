@@ -114,7 +114,7 @@ export default function DishRow({ item, restaurant }) {
             <TouchableOpacity
               className="p-1 rounded-full"
               style={{ backgroundColor: themeColors.bgColor(1) }}
-              onPress={() => addToCart({ ...item, price: parseFloat(totalPrice) }, restaurant)}
+              onPress={() => addToCart({ ...item, price: parseFloat(totalPrice), option: null }, restaurant)}
             >
               <Icon.Plus strokeWidth={2} height={20} width={20} stroke={'white'} />
             </TouchableOpacity>

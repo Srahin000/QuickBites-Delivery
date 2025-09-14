@@ -51,22 +51,36 @@ export function CartProvider({ children }) {
 
   const removeFromCart = (item) => {
     setCartItems((prev) => {
-      const existingIndex = prev.findIndex(
+      // First try to find exact match (id + option)
+      let existingIndex = prev.findIndex(
         (cartItem) => cartItem.id === item.id && cartItem.option === item.option
       );
-      if (existingIndex !== -1 && prev[existingIndex].quantity === 1) {
-        const updated = prev.filter((_, idx) => idx !== existingIndex);
-        if (updated.length === 0) {
-          setRestaurant(null);
-        }
-        return updated;
-      } else {
-        return prev.map((cartItem, idx) =>
-          idx === existingIndex
-            ? { ...cartItem, quantity: cartItem.quantity - 1 }
-            : cartItem
+      
+      // If no exact match found, try to find by id only (for items without options)
+      if (existingIndex === -1) {
+        existingIndex = prev.findIndex(
+          (cartItem) => cartItem.id === item.id
         );
       }
+      
+      if (existingIndex !== -1) {
+        if (prev[existingIndex].quantity === 1) {
+          const updated = prev.filter((_, idx) => idx !== existingIndex);
+          if (updated.length === 0) {
+            setRestaurant(null);
+          }
+          return updated;
+        } else {
+          return prev.map((cartItem, idx) =>
+            idx === existingIndex
+              ? { ...cartItem, quantity: cartItem.quantity - 1 }
+              : cartItem
+          );
+        }
+      }
+      
+      // If no matching item found, return unchanged
+      return prev;
     });
   };
 

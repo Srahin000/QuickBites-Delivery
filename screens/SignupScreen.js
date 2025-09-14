@@ -1,3 +1,10 @@
+/*
+ * TODO: FUTURE IMPLEMENTATION - Google Sign-in
+ * The Google Sign-in button has been commented out for future implementation.
+ * When ready to implement, uncomment the Google sign-in button and ensure
+ * the Google OAuth configuration is properly set up in Supabase.
+ */
+
 import {
   View,
   Text,
@@ -27,9 +34,6 @@ const SignupScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [schoolName, setSchoolName] = useState("");
-  const [schoolYear, setSchoolYear] = useState("");
-  const [major, setMajor] = useState("");
   const role = 'customer';
 
   // ✅ Check for existing session on mount (handles email confirmation)
@@ -60,9 +64,6 @@ const SignupScreen = () => {
           email: user.email,
           first_name: firstName,
           last_name: lastName,
-          school_name: schoolName,
-          school_year: schoolYear,
-          major: major,
           role: role,
         }]);
       }
@@ -105,9 +106,6 @@ const SignupScreen = () => {
                   email: user.email,
                   first_name: firstName,
                   last_name: lastName,
-                  school_name: schoolName,
-                  school_year: schoolYear,
-                  major: major,
                   role: role,
                 },
               ]);
@@ -127,7 +125,7 @@ const SignupScreen = () => {
         subscription.unsubscribe();
       }
     };
-  }, [firstName, lastName, schoolName, schoolYear, major, role]);
+  }, [firstName, lastName, role]);
 
   const handleSignUp = async () => {
     if (!firstName || !lastName || !email || !password) {
@@ -261,24 +259,6 @@ const SignupScreen = () => {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-              className="border border-gray-300 rounded-lg p-3 mb-4 bg-gray-50"
-          />
-          <TextInput
-            placeholder="School Name"
-            value={schoolName}
-            onChangeText={setSchoolName}
-              className="border border-gray-300 rounded-lg p-3 mb-4 bg-gray-50"
-          />
-          <TextInput
-              placeholder="School Year"
-            value={schoolYear}
-            onChangeText={setSchoolYear}
-              className="border border-gray-300 rounded-lg p-3 mb-4 bg-gray-50"
-          />
-          <TextInput
-            placeholder="Major"
-            value={major}
-            onChangeText={setMajor}
               className="border border-gray-300 rounded-lg p-3 mb-6 bg-gray-50"
           />
 
@@ -295,6 +275,7 @@ const SignupScreen = () => {
             )}
           </TouchableOpacity>
 
+            {/* TODO: FUTURE IMPLEMENTATION - Google Sign-in Button
             <TouchableOpacity
               onPress={handleGoogleSignUp}
               style={{ backgroundColor: themeColors.yellow }}
@@ -302,6 +283,7 @@ const SignupScreen = () => {
             >
               <Text className="text-white text-center font-semibold text-lg">Sign Up with Google</Text>
             </TouchableOpacity>
+            */}
 
             <TouchableOpacity onPress={() => navigation.navigate("Signin")}>
               <Text className="text-center text-gray-600">

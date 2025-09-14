@@ -1,3 +1,10 @@
+/*
+ * TODO: FUTURE IMPLEMENTATION - Google Sign-in
+ * The Google Sign-in button has been commented out for future implementation.
+ * When ready to implement, uncomment the Google sign-in button and ensure
+ * the Google OAuth configuration is properly set up in Supabase.
+ */
+
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, ScrollView, Platform, SafeAreaView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
@@ -152,6 +159,7 @@ const SigninScreen = () => {
             )}
           </TouchableOpacity>
 
+            {/* TODO: FUTURE IMPLEMENTATION - Google Sign-in Button
             <TouchableOpacity
               onPress={handleGoogleSignIn}
               style={{ backgroundColor: themeColors.yellow }}
@@ -159,6 +167,7 @@ const SigninScreen = () => {
             >
               <Text className="text-white text-center font-semibold text-lg">Sign In with Google</Text>
             </TouchableOpacity>
+            */}
 
 
             <TouchableOpacity onPress={() => navigation.navigate("Signup")}>

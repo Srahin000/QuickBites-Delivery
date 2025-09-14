@@ -107,14 +107,36 @@
             if (accessToken) {
                 console.log('OAuth Success - Access Token received');
                 statusElement.textContent = 'Success!';
-                messageElement.textContent = 'Redirecting you to the app...';
+                messageElement.textContent = 'You will be redirected to the app in 5 seconds...';
                 
-                // Redirect back to app with success and tokens
-                setTimeout(() => {
-                    const redirectUrl = `com.srahin000.quickbites://auth/success?access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken || '')}`;
-                    console.log('Redirecting to:', redirectUrl);
-                    window.location.href = redirectUrl;
+                const redirectUrl = `com.srahin000.quickbites://auth/success?access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken || '')}`;
+                console.log('Will redirect to:', redirectUrl);
+                
+                // Countdown timer
+                let countdown = 5;
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        messageElement.textContent = `You will be redirected to the app in ${countdown} seconds...`;
+                    } else {
+                        clearInterval(countdownInterval);
+                        messageElement.textContent = 'Redirecting now...';
+                    }
                 }, 1000);
+                
+                // Redirect after 5 seconds
+                setTimeout(() => {
+                    console.log('Redirecting to app...');
+                    window.location.href = redirectUrl;
+                }, 5000);
+                
+                // Show manual redirect option after 3 seconds
+                setTimeout(() => {
+                    messageElement.innerHTML = `
+                        You will be redirected to the app in ${countdown} seconds...<br><br>
+                        <a href="${redirectUrl}" style="color: #502efa; text-decoration: underline;">Click here to return to the app now</a>
+                    `;
+                }, 3000);
             } else {
                 console.error('No access token received');
                 statusElement.textContent = 'Authentication Failed';

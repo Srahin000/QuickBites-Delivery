@@ -98,19 +98,7 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
     }
 
     try {
-      // Increment the counter for the selected time slot
-      const { error } = await supabase
-        .from('delivery_times')
-        .update({ counter: selectedTime.counter + 1 })
-        .eq('id', selectedTime.id);
-
-      if (error) {
-        console.error('Error updating time slot counter:', error);
-        Alert.alert('Error', 'Failed to reserve time slot. Please try again.');
-        return;
-      }
-
-      // Call the callback with selected time
+      // Just call the callback with selected time - counter will be incremented after payment
       onTimeSelected(selectedTime);
       onClose();
     } catch (error) {

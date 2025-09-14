@@ -251,10 +251,10 @@ export default function ProfileScreen() {
             </Text>
           </View>
           
-          {/* Name and Email - Centered below profile pic */}
+          {/* Profile Title - Centered below profile pic */}
           <View style={{ alignItems: 'center', marginTop: 16 }}>
-            <Text className="text-xl font-bold" style={{ color: 'white' }}>{profile.first_name} {profile.last_name}</Text>
-            <Text className="text-base" style={{ color: 'white', opacity: 0.85 }}>{profile.email}</Text>
+            <Text className="text-xl font-bold" style={{ color: 'white' }}>Profile</Text>
+            <Text className="text-base" style={{ color: 'white', opacity: 0.85 }}>Manage your account</Text>
           </View>
         </View>
       </View>
@@ -270,30 +270,20 @@ export default function ProfileScreen() {
           <Animated.View entering={FadeInUp.delay(400)}>
             <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mx-2">
               <View className="flex-row items-center mb-3">
-                <Icon.BookOpen className="w-5 h-5" style={{ color: themeColors.purple }} />
-                <Text className="text-gray-600 font-medium ml-3">School</Text>
+                <Icon.User className="w-5 h-5" style={{ color: themeColors.purple }} />
+                <Text className="text-gray-600 font-medium ml-3">Full Name</Text>
               </View>
-              <Text className="text-lg font-semibold text-gray-800">{profile.school_name}</Text>
+              <Text className="text-lg font-semibold text-gray-800">{profile.first_name} {profile.last_name}</Text>
             </View>
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(500)}>
             <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mx-2">
               <View className="flex-row items-center mb-3">
-                <Icon.Calendar className="w-5 h-5" style={{ color: themeColors.purple }} />
-                <Text className="text-gray-600 font-medium ml-3">Year</Text>
+                <Icon.Mail className="w-5 h-5" style={{ color: themeColors.purple }} />
+                <Text className="text-gray-600 font-medium ml-3">Email</Text>
               </View>
-              <Text className="text-lg font-semibold text-gray-800">{profile.school_year}</Text>
-            </View>
-          </Animated.View>
-
-          <Animated.View entering={FadeInUp.delay(600)}>
-            <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mx-2">
-              <View className="flex-row items-center mb-3">
-                <Icon.Award className="w-5 h-5" style={{ color: themeColors.purple }} />
-                <Text className="text-gray-600 font-medium ml-3">Major</Text>
-              </View>
-              <Text className="text-lg font-semibold text-gray-800">{profile.major}</Text>
+              <Text className="text-lg font-semibold text-gray-800">{profile.email}</Text>
             </View>
           </Animated.View>
         </View>
@@ -472,6 +462,7 @@ export default function ProfileScreen() {
           )}
           </Animated.View>
         </Animated.View>
+        
       </ScrollView>
     </SafeAreaView>
   );

@@ -30,6 +30,8 @@ import KioskScreen from './screens/KioskScreen';
 import DelivererDashboard from './screens/DelivererScreens/DelivererDashboard';
 import DelivererChat from './screens/DelivererScreens/DelivererChat';
 import ProfileScreen from './screens/ProfileScreen';
+import AuthSuccessScreen from './screens/AuthSuccessScreen';
+import AuthErrorScreen from './screens/AuthErrorScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +58,8 @@ const linking = {
       Signin: 'signin',
       ForgotPassword: 'forgot-password',
       ResetPassword: 'reset-password',
+      AuthSuccess: 'auth/success',
+      AuthError: 'auth/error',
       AdminDashboard: 'admin',
       OrderPreparing: 'success',
       Cancel: 'cancel',
@@ -118,6 +122,8 @@ export default function Navigation() {
             <Stack.Screen name="Signin" component={SigninScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
             <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+            <Stack.Screen name="AuthSuccess" component={AuthSuccessScreen} />
+            <Stack.Screen name="AuthError" component={AuthErrorScreen} />
           </>
         ) : role === 'admin' ? (
           <>

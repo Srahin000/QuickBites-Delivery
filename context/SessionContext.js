@@ -80,12 +80,34 @@ export function SessionProvider({ children }) {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      console.log('SessionContext: Attempting to sign out...');
+      
+      // Always clear local session first
       setSession(null);
+      
+      // Try to sign out from Supabase, but don't fail if it doesn't work
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (currentSession) {
+          console.log('SessionContext: Signing out user from Supabase:', currentSession.user?.email);
+          const { error } = await supabase.auth.signOut();
+          if (error) {
+            console.log('SessionContext: Supabase signOut error (non-critical):', error.message);
+          } else {
+            console.log('SessionContext: Successfully signed out from Supabase');
+          }
+        } else {
+          console.log('SessionContext: No active session found in Supabase');
+        }
+      } catch (supabaseError) {
+        console.log('SessionContext: Supabase signOut failed (non-critical):', supabaseError.message);
+      }
+      
+      console.log('SessionContext: Sign out completed - local session cleared');
     } catch (error) {
-      console.error('SessionContext: Error signing out:', error);
-      throw error;
+      console.error('SessionContext: Unexpected error during sign out:', error);
+      // Always ensure local session is cleared
+      setSession(null);
     }
   };
 
