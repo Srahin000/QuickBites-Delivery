@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Valid Token - Quickbites</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .token-info {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .valid { background: #d4edda; color: #155724; }
+        .invalid { background: #f8d7da; color: #721c24; }
+        .example { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>Token Validation Test</h1>
+    
+    <div id="currentToken" class="token-info">Loading...</div>
+    
+    <h2>What a Valid Token Should Look Like:</h2>
+    <div class="token-info example">
+A valid Supabase JWT token should:
+1. Start with "eyJ" (base64 encoded JSON)
+2. Be very long (usually 200+ characters)
+3. Have 3 parts separated by dots: header.payload.signature
+4. Look like: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnb3V3enV1Zm5uaHRoc3Jld3J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM0NzQ0NzQsImV4cCI6MjA0OTA1MDQ3NH0.8B5CF6
+
+Your current token "515586" is just numbers, which means:
+- Your Supabase Site URL is wrong, OR
+- Your email template is not using {{ .Token }} correctly, OR
+- There's an issue with your Supabase project configuration
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessToken = urlParams.get('access_token');
+        const type = urlParams.get('type');
+        
+        let analysis = `Current Token Analysis:
+URL: ${window.location.href}
+
+Your Token: "${accessToken || 'MISSING'}"
+Type: "${type || 'MISSING'}"
+
+Token Length: ${accessToken ? accessToken.length : 0} characters
+Token Format: `;
+        
+        if (!accessToken) {
+            analysis += `❌ NO TOKEN FOUND`;
+        } else if (accessToken.startsWith('eyJ')) {
+            analysis += `✅ VALID JWT FORMAT`;
+        } else if (accessToken.match(/^\d+$/)) {
+            analysis += `❌ INVALID - Just numbers (${accessToken})
+            
+This is NOT a valid Supabase token! The problem is likely:
+1. Supabase Site URL is wrong
+2. Email template not using {{ .Token }} correctly
+3. Supabase project configuration issue`;
+        } else {
+            analysis += `❓ UNKNOWN FORMAT`;
+        }
+        
+        if (type !== 'recovery') {
+            analysis += `\n\n❌ Type should be "recovery" but got "${type}"`;
+        } else {
+            analysis += `\n\n✅ Type is correct`;
+        }
+        
+        document.getElementById('currentToken').textContent = analysis;
+        document.getElementById('currentToken').className = `token-info ${accessToken && accessToken.startsWith('eyJ') ? 'valid' : 'invalid'}`;
+    </script>
+</body>
+</html>
