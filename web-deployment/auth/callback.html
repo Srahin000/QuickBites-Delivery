@@ -74,14 +74,22 @@
         // Handle OAuth callback
         function handleOAuthCallback() {
             const urlParams = new URLSearchParams(window.location.search);
-            const accessToken = urlParams.get('access_token');
-            const refreshToken = urlParams.get('refresh_token');
-            const error = urlParams.get('error');
-            const errorDescription = urlParams.get('error_description');
+            const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+            
+            // Check both query params and hash for tokens
+            const accessToken = urlParams.get('access_token') || hashParams.get('access_token');
+            const refreshToken = urlParams.get('refresh_token') || hashParams.get('refresh_token');
+            const error = urlParams.get('error') || hashParams.get('error');
+            const errorDescription = urlParams.get('error_description') || hashParams.get('error_description');
 
             const statusElement = document.getElementById('status');
             const messageElement = document.getElementById('message');
             const loadingElement = document.querySelector('.loading');
+
+            console.log('OAuth Callback - URL:', window.location.href);
+            console.log('Access Token:', accessToken ? 'Present' : 'Missing');
+            console.log('Refresh Token:', refreshToken ? 'Present' : 'Missing');
+            console.log('Error:', error || 'None');
 
             if (error) {
                 console.error('OAuth Error:', error, errorDescription);
@@ -96,32 +104,28 @@
                 return;
             }
 
-        if (accessToken) {
-            console.log('OAuth Success - Access Token received');
-            statusElement.textContent = 'Success!';
-            messageElement.textContent = 'Redirecting you to the app...';
-            
-            // Store the session data in localStorage for the app to pick up
-            try {
-                localStorage.setItem('supabase_auth_token', accessToken);
-                if (refreshToken) {
-                    localStorage.setItem('supabase_refresh_token', refreshToken);
-                }
-                console.log('Session data stored in localStorage');
-            } catch (e) {
-                console.error('Error storing session data:', e);
+            if (accessToken) {
+                console.log('OAuth Success - Access Token received');
+                statusElement.textContent = 'Success!';
+                messageElement.textContent = 'Redirecting you to the app...';
+                
+                // Redirect back to app with success and tokens
+                setTimeout(() => {
+                    const redirectUrl = `com.srahin000.quickbites://auth/success?access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken || '')}`;
+                    console.log('Redirecting to:', redirectUrl);
+                    window.location.href = redirectUrl;
+                }, 1000);
+            } else {
+                console.error('No access token received');
+                statusElement.textContent = 'Authentication Failed';
+                messageElement.textContent = 'No access token received from authentication provider.';
+                loadingElement.style.display = 'none';
+                
+                // Redirect back to app with error
+                setTimeout(() => {
+                    window.location.href = 'com.srahin000.quickbites://auth/error?error=no_token';
+                }, 3000);
             }
-            
-            // Redirect back to app with success
-            setTimeout(() => {
-                window.location.href = 'com.srahin000.quickbites://auth/success?access_token=' + encodeURIComponent(accessToken) + '&refresh_token=' + encodeURIComponent(refreshToken || '');
-            }, 1000);
-        } else {
-            console.error('No access token received');
-            statusElement.textContent = 'Authentication Failed';
-            messageElement.textContent = 'No access token received from authentication provider.';
-            loadingElement.style.display = 'none';
-        }
         }
 
         // Run callback handler when page loads
