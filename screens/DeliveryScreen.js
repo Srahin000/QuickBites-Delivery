@@ -333,7 +333,12 @@ export default function DeliveryScreen() {
         >
           <View className="space-y-3">
             <TouchableOpacity
-              onPress={() => navigation.navigate('MainTabs', { screen: 'Orders', params: { refresh: Date.now() } })}
+              onPress={() => {
+                navigation.goBack(); // Dismiss the modal first
+                setTimeout(() => {
+                  navigation.navigate('MainTabs', { screen: 'Orders' });
+                }, 100);
+              }}
               className="bg-primary rounded-2xl p-4 shadow-sm"
             >
               <Text className="text-white text-lg font-semibold text-center">
@@ -342,7 +347,12 @@ export default function DeliveryScreen() {
             </TouchableOpacity>
             
             <TouchableOpacity
-              onPress={() => navigation.navigate('MainTabs', { screen: 'Home', params: { refresh: Date.now() } })}
+              onPress={() => {
+                navigation.goBack(); // Dismiss the modal first
+                setTimeout(() => {
+                  navigation.navigate('MainTabs', { screen: 'Home' });
+                }, 100);
+              }}
               className="bg-gray-100 rounded-2xl p-4"
             >
               <Text className="text-gray-800 text-lg font-semibold text-center">

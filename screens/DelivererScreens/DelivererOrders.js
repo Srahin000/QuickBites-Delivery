@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import * as Icon from 'react-native-feather';
 import supabase from "../../supabaseClient"
 import { themeColors } from '../../theme';
 import { useSession } from '../../context/SessionContext-v2';
@@ -110,8 +111,24 @@ export default function DelivererOrders() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.bgColor2 }}>
-      <View style={{ backgroundColor: themeColors.bgColor2, padding: 20 }}>
+      <View style={{ backgroundColor: themeColors.bgColor2, padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>Available Orders</Text>
+        <TouchableOpacity
+          onPress={onRefresh}
+          disabled={refreshing}
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            padding: 8,
+            borderRadius: 8,
+            opacity: refreshing ? 0.6 : 1
+          }}
+        >
+          <Icon.RefreshCcw 
+            size={20} 
+            color="white" 
+            style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
+          />
+        </TouchableOpacity>
       </View>
       <View style={{ flex: 1, backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
         {orders.length === 0 ? (

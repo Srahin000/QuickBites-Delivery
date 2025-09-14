@@ -28,6 +28,8 @@ import OrderHistoryDetails from './screens/OrderHistoryDetails';
 import GameScreen from './screens/GameScreen';
 import KioskScreen from './screens/KioskScreen';
 import DelivererDashboard from './screens/DelivererScreens/DelivererDashboard';
+import DelivererChat from './screens/DelivererScreens/DelivererChat';
+import ProfileScreen from './screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -59,23 +61,14 @@ const linking = {
 };
 
 export default function Navigation() {
-  let session, loading;
-  try {
-    const sessionData = useSession();
-    session = sessionData?.session || null;
-    loading = sessionData?.loading || false;
-  } catch (error) {
-    console.error('Navigation: Error getting session:', error);
-    session = null;
-    loading = false;
-  }
+  const { session, loading } = useSession();
 
   const [role, setRole] = useState(null);
   const [roleLoading, setRoleLoading] = useState(false);
 
   useEffect(() => {
     const fetchRole = async () => {
-      if (session?.user) {
+      if (session?.user?.id) {
         setRoleLoading(true);
         try {
           const { data, error } = await supabase
@@ -83,19 +76,25 @@ export default function Navigation() {
             .select('role')
             .eq('id', session.user.id)
             .single();
+          
           if (error) {
+            console.error('Error fetching role:', error);
             setRole(null);
           } else {
             setRole(data?.role || null);
           }
         } catch (err) {
+          console.error('Error in fetchRole:', err);
           setRole(null);
+        } finally {
+          setRoleLoading(false);
         }
-        setRoleLoading(false);
       } else {
         setRole(null);
+        setRoleLoading(false);
       }
     };
+    
     fetchRole();
   }, [session?.user?.id]);
 
@@ -133,6 +132,8 @@ export default function Navigation() {
             <Stack.Screen name="GameScreen" component={GameScreen} />
             <Stack.Screen name="OrderPreparing" options={{ presentation: 'fullScreenModal' }} component={OrderPreparingScreen} />
             <Stack.Screen name="Delivery" options={{ presentation: 'fullScreenModal' }} component={DeliveryScreen} />
+            <Stack.Screen name="DelivererChat" component={DelivererChat} />
+            <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
           </>
         ) : role === 'deliverer' ? (
@@ -146,6 +147,8 @@ export default function Navigation() {
             <Stack.Screen name="GameScreen" component={GameScreen} />
             <Stack.Screen name="OrderPreparing" options={{ presentation: 'fullScreenModal' }} component={OrderPreparingScreen} />
             <Stack.Screen name="Delivery" options={{ presentation: 'fullScreenModal' }} component={DeliveryScreen} />
+            <Stack.Screen name="DelivererChat" component={DelivererChat} />
+            <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
           </>
         ) : (
@@ -166,6 +169,8 @@ export default function Navigation() {
             <Stack.Screen name="GameScreen" component={GameScreen} />
             <Stack.Screen name="OrderPreparing" options={{ presentation: 'fullScreenModal' }} component={OrderPreparingScreen} />
             <Stack.Screen name="Delivery" options={{ presentation: 'fullScreenModal' }} component={DeliveryScreen} />
+            <Stack.Screen name="DelivererChat" component={DelivererChat} />
+            <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
             <Stack.Screen name="Signin" component={SigninScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

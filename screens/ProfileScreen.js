@@ -199,38 +199,63 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.purple }} edges={['top', 'left', 'right']}>
       <StatusBar style="light" backgroundColor={themeColors.purple} />
-      {/* Purple Banner with Profile Circle and Info */}
+      {/* Purple Banner with Go Back Button, Profile Circle and Info */}
       <View style={{
         backgroundColor: themeColors.purple,
-        height: 140,
         width: '100%',
-        flexDirection: 'row',
-        alignItems: 'center',
         paddingHorizontal: 24,
         paddingTop: 10,
+        paddingBottom: 20,
+        position: 'relative',
       }}>
-        {/* Yellow Circle */}
+        {/* Go Back Button - Top Left */}
+        <TouchableOpacity
+          onPress={() => navigator.goBack()}
+          style={{
+            position: 'absolute',
+            top: 20,
+            left: 24,
+            zIndex: 10,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon.ArrowLeft size={20} color="white" />
+        </TouchableOpacity>
+
+        {/* Content Container - Centered */}
         <View style={{
-          backgroundColor: themeColors.yellow,
-          width: 96,
-          height: 96,
-          borderRadius: 48,
           alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.25,
-          shadowRadius: 16,
-          elevation: 12,
+          marginTop: 50, // Space for back button
         }}>
-          <Text className="text-3xl font-bold text-white">
-            {profile.first_name?.charAt(0) ?? ''}{profile.last_name?.charAt(0) ?? ''}
-          </Text>
-        </View>
-        {/* Name and Email */}
-        <View style={{ marginLeft: 20, flex: 1, justifyContent: 'center' }}>
-          <Text className="text-xl font-bold" style={{ color: 'white' }}>{profile.first_name} {profile.last_name}</Text>
-          <Text className="text-base" style={{ color: 'white', opacity: 0.85 }}>{profile.email}</Text>
+          {/* Yellow Circle - Centered */}
+          <View style={{
+            backgroundColor: themeColors.yellow,
+            width: 96,
+            height: 96,
+            borderRadius: 48,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.25,
+            shadowRadius: 16,
+            elevation: 12,
+          }}>
+            <Text className="text-3xl font-bold text-white">
+              {profile.first_name?.charAt(0) ?? ''}{profile.last_name?.charAt(0) ?? ''}
+            </Text>
+          </View>
+          
+          {/* Name and Email - Centered below profile pic */}
+          <View style={{ alignItems: 'center', marginTop: 16 }}>
+            <Text className="text-xl font-bold" style={{ color: 'white' }}>{profile.first_name} {profile.last_name}</Text>
+            <Text className="text-base" style={{ color: 'white', opacity: 0.85 }}>{profile.email}</Text>
+          </View>
         </View>
       </View>
       <ScrollView

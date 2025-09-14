@@ -171,26 +171,37 @@ export default function HomeScreen() {
     <View className="flex-1 bg-white">
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={{ backgroundColor: themeColors.bgColor2 }}>
-        {/* 🔍 Search Bar */}
+        {/* Header with Profile and Search */}
         <Animated.View 
           style={searchBarStyle}
           entering={FadeInDown.delay(200).springify()}
-          className="flex-row items-center space-x-2 px-4 pt-2 pb-3"
+          className="flex-row items-center justify-between px-4 pt-2 pb-3"
         >
-          <View className="flex-row flex-1 items-center p-2.5 rounded-full border border-gray-300 bg-white shadow-sm">
-            <Icon.Search height="20" width="20" stroke="gray" />
-            <TextInput
-              placeholder="Restaurants"
-              className="ml-2 flex-1 text-base"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholderTextColor="gray"
-            />
-            <View className="flex-row items-center space-x-1 border-0 border-l-2 pl-2 border-l-gray-300">
-              <Icon.MapPin height="18" width="18" stroke="gray" />
-              <Text className="text-gray-600 text-sm">City College</Text>
+          {/* 🔍 Search Bar - Shorter */}
+          <View className="flex-row items-center flex-1 mr-3">
+            <View className="flex-row flex-1 items-center p-2.5 rounded-full border border-gray-300 bg-white shadow-sm">
+              <Icon.Search height="20" width="20" stroke="gray" />
+              <TextInput
+                placeholder="Restaurants"
+                className="ml-2 flex-1 text-base"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholderTextColor="gray"
+              />
+              <View className="flex-row items-center space-x-1 border-0 border-l-2 pl-2 border-l-gray-300">
+                <Icon.MapPin height="18" width="18" stroke="gray" />
+                <Text className="text-gray-600 text-sm">City College</Text>
+              </View>
             </View>
           </View>
+
+          {/* 👤 Profile Button */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ProfileScreen')}
+            className="w-12 h-12 rounded-full bg-white border border-gray-300 shadow-sm items-center justify-center"
+          >
+            <Icon.User height="24" width="24" stroke={themeColors.bgColor2} />
+          </TouchableOpacity>
         </Animated.View>
 
         {/* 🚨 Active Order Alert */}

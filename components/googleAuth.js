@@ -12,7 +12,7 @@ export const signInWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://quickbites-delta.vercel.app/auth/callback'
+        redirectTo: 'https://pgouwzuufnnhthwrewrv.supabase.co/auth/v1/callback'
       }
     });
 
@@ -31,7 +31,7 @@ export const signInWithGoogle = async () => {
     // Step 2: Open the URL in the browser
     const result = await WebBrowser.openAuthSessionAsync(
       data.url,
-      'https://quickbites-delta.vercel.app/auth/callback'
+      'https://pgouwzuufnnhthwrewrv.supabase.co/auth/v1/callback'
     );
 
     console.log('🔍 OAuth Result:', result);

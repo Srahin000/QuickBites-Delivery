@@ -9,6 +9,7 @@ import TabCartScreen from '../screens/TabCartScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import RewardsScreen from '../screens/RewardsScreen';
+import ChatScreen from '../screens/ChatScreen';
 import { themeColors } from '../theme';
 
 const Tab = createBottomTabNavigator();
@@ -22,9 +23,9 @@ export default function FooterPanel() {
           let iconName;
           if (route.name === 'Home') iconName = 'home';
           else if (route.name === 'Cart') iconName = 'cart';
+          else if (route.name === 'Chat') iconName = 'chat';
           else if (route.name === 'Rewards') iconName = 'trophy';
           else if (route.name === 'Orders') iconName = 'clipboard-list';
-          else if (route.name === 'Profile') iconName = 'account';
           return <Icon name={iconName} size={size} color={color} />;
         },
         tabBarStyle: {
@@ -37,29 +38,11 @@ export default function FooterPanel() {
         headerShown: false,
       })}
     >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeScreen}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            // Trigger refresh when Home tab is pressed
-            navigation.navigate('Home', { refresh: Date.now() });
-          },
-        })}
-      />
+      <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Cart" component={TabCartScreen} />
+      <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Rewards" component={RewardsScreen} />
-      <Tab.Screen 
-        name="Orders" 
-        component={OrdersScreen}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            // Trigger refresh when Orders tab is pressed
-            navigation.navigate('Orders', { refresh: Date.now() });
-          },
-        })}
-      />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Orders" component={OrdersScreen} />
     </Tab.Navigator>
   );
 }

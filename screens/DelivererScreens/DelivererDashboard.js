@@ -3,7 +3,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DelivererOrders from './DelivererOrders';
 import DelivererMyDeliveries from './DelivererMyDeliveries';
-import DelivererMap from './DelivererMap';
+import DelivererChat from './DelivererChat';
+import DelivererChatHistory from './DelivererChatHistory';
 import DelivererProfile from './DelivererProfile';
 import { themeColors } from '../../theme';
 
@@ -17,7 +18,8 @@ export default function DelivererDashboard() {
           let iconName;
           if (route.name === 'Available Orders') iconName = 'package-variant-closed';
           else if (route.name === 'My Deliveries') iconName = 'truck-delivery';
-          else if (route.name === 'Map') iconName = 'map-marker-radius';
+          else if (route.name === 'Chat') iconName = 'chat';
+          else if (route.name === 'Chat History') iconName = 'history';
           else if (route.name === 'Profile') iconName = 'account-circle';
           return <Icon name={iconName} size={size} color={color} />;
         },
@@ -31,27 +33,10 @@ export default function DelivererDashboard() {
         headerShown: false,
       })}
     >
-      <Tab.Screen 
-        name="My Deliveries" 
-        component={DelivererMyDeliveries}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            // Trigger refresh when My Deliveries tab is pressed
-            navigation.navigate('My Deliveries', { refresh: Date.now() });
-          },
-        })}
-      />
-      <Tab.Screen 
-        name="Available Orders" 
-        component={DelivererOrders}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            // Trigger refresh when Available Orders tab is pressed
-            navigation.navigate('Available Orders', { refresh: Date.now() });
-          },
-        })}
-      />
-      <Tab.Screen name="Map" component={DelivererMap} />
+      <Tab.Screen name="My Deliveries" component={DelivererMyDeliveries} />
+      <Tab.Screen name="Available Orders" component={DelivererOrders} />
+      <Tab.Screen name="Chat" component={DelivererChat} />
+      <Tab.Screen name="Chat History" component={DelivererChatHistory} />
       <Tab.Screen name="Profile" component={DelivererProfile} />
     </Tab.Navigator>
   );
