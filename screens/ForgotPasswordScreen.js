@@ -38,7 +38,7 @@ const ForgotPasswordScreen = () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://quickbites-delta.vercel.app/reset-password',
+        redirectTo: 'https://quick-bites-delivery-flax.vercel.app/reset-password',
       });
 
       if (error) {

@@ -39,24 +39,59 @@ export const signInWithGoogle = async () => {
     // Step 3: Handle the result
     if (result.type === 'success') {
       console.log('✅ OAuth successful, checking session...');
+      console.log('🔍 OAuth result URL:', result.url);
       
-      // Wait a moment for the session to be established
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Extract the URL parameters from the OAuth result
+      const url = new URL(result.url);
+      const accessToken = url.searchParams.get('access_token');
+      const refreshToken = url.searchParams.get('refresh_token');
+      const error = url.searchParams.get('error');
       
-      // Get the current session
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('❌ Session Error:', sessionError);
-        throw sessionError;
+      if (error) {
+        console.error('❌ OAuth Error in URL:', error);
+        throw new Error(`OAuth error: ${error}`);
       }
       
-      if (sessionData.session) {
-        console.log('✅ Session established:', sessionData.session.user.email);
-        return { data: sessionData.session, error: null };
+      if (accessToken) {
+        console.log('✅ Access token found, setting session...');
+        
+        // Set the session manually using the access token
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || ''
+        });
+        
+        if (sessionError) {
+          console.error('❌ Session Error:', sessionError);
+          throw sessionError;
+        }
+        
+        if (sessionData.session) {
+          console.log('✅ Session established:', sessionData.session.user.email);
+          return { data: sessionData.session, error: null };
+        } else {
+          console.error('❌ No session created from tokens');
+          throw new Error('No session created from OAuth tokens');
+        }
       } else {
-        console.error('❌ No session found after OAuth');
-        throw new Error('No session found after OAuth');
+        // Fallback: wait and check for session
+        console.log('⚠️ No access token in URL, waiting for session...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('❌ Session Error:', sessionError);
+          throw sessionError;
+        }
+        
+        if (sessionData.session) {
+          console.log('✅ Session found after waiting:', sessionData.session.user.email);
+          return { data: sessionData.session, error: null };
+        } else {
+          console.error('❌ No session found after OAuth');
+          throw new Error('No session found after OAuth');
+        }
       }
     } else if (result.type === 'cancel') {
       console.log('❌ OAuth cancelled by user');

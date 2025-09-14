@@ -36,7 +36,8 @@ const Stack = createNativeStackNavigator();
 const linking = {
   prefixes: [
     'quickbites://',
-    'https://quickbites-q9h4.vercel.app'
+    'com.srahin000.quickbites://',
+    'https://quick-bites-delivery-flax.vercel.app'
   ],
   config: {
     screens: {
@@ -53,6 +54,8 @@ const linking = {
       GameScreen: 'game',
       Signup: 'signup',
       Signin: 'signin',
+      ForgotPassword: 'forgot-password',
+      ResetPassword: 'reset-password',
       AdminDashboard: 'admin',
       OrderPreparing: 'success',
       Cancel: 'cancel',

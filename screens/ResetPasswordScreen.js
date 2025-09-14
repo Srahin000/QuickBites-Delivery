@@ -26,14 +26,48 @@ const ResetPasswordScreen = () => {
   const [session, setSession] = useState(null);
 
   useEffect(() => {
-    // Check if we have a valid session from the password reset link
-    const checkSession = async () => {
+    // Handle deep link for password reset
+    const handleDeepLink = async () => {
       try {
-        // First, check if we have a session from the deep link
+        // Get the initial URL (if app was opened via deep link)
+        const initialUrl = await Linking.getInitialURL();
+        console.log('🔍 ResetPasswordScreen - Initial URL:', initialUrl);
+        console.log('🔍 ResetPasswordScreen - Current route params:', route.params);
+        
+        if (initialUrl) {
+          const url = new URL(initialUrl);
+          const accessToken = url.searchParams.get('access_token');
+          const refreshToken = url.searchParams.get('refresh_token');
+          
+          if (accessToken) {
+            console.log('Access token found in deep link, setting session...');
+            
+            // Set the session using the tokens from the deep link
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ''
+            });
+            
+            if (sessionError) {
+              console.error('Session error:', sessionError);
+              Alert.alert("Error", "Invalid reset link. Please request a new password reset.");
+              navigation.navigate("ForgotPassword");
+              return;
+            }
+            
+            if (sessionData.session) {
+              console.log('Session established from deep link');
+              setSession(sessionData.session);
+              return;
+            }
+          }
+        }
+        
+        // Check if we have an existing session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (session) {
-          console.log('Valid session found from deep link');
+          console.log('Valid session found');
           setSession(session);
           return;
         }
@@ -56,13 +90,27 @@ const ResetPasswordScreen = () => {
         );
         
       } catch (error) {
-        console.error('Error checking session:', error);
+        console.error('Error handling deep link:', error);
         Alert.alert("Error", "Something went wrong. Please try again.");
         navigation.navigate("Signin");
       }
     };
 
-    checkSession();
+    handleDeepLink();
+    
+    // Listen for deep links when app is already running
+    const handleUrl = (url) => {
+      console.log('Deep link received:', url);
+      if (url.includes('reset-password')) {
+        handleDeepLink();
+      }
+    };
+    
+    const subscription = Linking.addEventListener('url', handleUrl);
+    
+    return () => {
+      subscription?.remove();
+    };
   }, []);
 
   const handleResetPassword = async () => {
