@@ -69,8 +69,15 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
           hour = 0;
         }
         
-        const isFuture = hour > currentHour || (hour === currentHour && minute > currentMinute);
-        return isFuture;
+        // Calculate time difference in minutes
+        const slotMinutes = hour * 60 + minute;
+        const currentMinutes = currentHour * 60 + currentMinute;
+        const timeDifference = slotMinutes - currentMinutes;
+        
+        // Hide slots that are less than 1 hour and 45 minutes away (105 minutes)
+        // Example: If current time is 2:15 PM and slot is 3:00 PM (45 min away), hide it
+        // But if current time is 1:30 PM and slot is 3:00 PM (90 min away), show it
+        return timeDifference >= 105; // 105 minutes = 1 hour 45 minutes
       });
       setTimeSlots(availableSlots);
     } catch (error) {

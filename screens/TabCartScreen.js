@@ -142,12 +142,17 @@ export default function CartScreen() {
         return;
       }
       
-      // Filter out past times for today
-      const currentHour = today.getHours();
+      // Filter out times that are too close to current time (less than 1 hour 45 minutes)
+      const currentTime = new Date();
+      const currentHour = currentTime.getHours();
+      const currentMinute = currentTime.getMinutes();
+      
       const filteredTimes = data.filter(timeSlot => {
         const hours = parseInt(timeSlot.hours);
+        const minutes = parseInt(timeSlot.minutes) || 0;
         const ampm = timeSlot.ampm;
         
+        // Convert slot time to 24-hour format
         let slotHour = hours;
         if (ampm === 'PM' && hours !== 12) {
           slotHour = hours + 12;
@@ -155,7 +160,15 @@ export default function CartScreen() {
           slotHour = 0;
         }
         
-        return slotHour > currentHour;
+        // Calculate time difference in minutes
+        const slotMinutes = slotHour * 60 + minutes;
+        const currentMinutes = currentHour * 60 + currentMinute;
+        const timeDifference = slotMinutes - currentMinutes;
+        
+        // Hide slots that are less than 1 hour and 45 minutes away (105 minutes)
+        // Example: If current time is 2:15 PM and slot is 3:00 PM (45 min away), hide it
+        // But if current time is 1:30 PM and slot is 3:00 PM (90 min away), show it
+        return timeDifference >= 105; // 105 minutes = 1 hour 45 minutes
       });
       
       setAvailableTimeSlots(filteredTimes);
