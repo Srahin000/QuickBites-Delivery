@@ -174,7 +174,7 @@ export default function DelivererChat() {
                   </View>
                   <Text className="text-sm text-gray-600 mb-1">Order #{order.orders?.id}</Text>
                   <Text className="text-sm text-gray-500 mb-2">{order.orders?.restaurant_name || 'Restaurant'}</Text>
-                  <Text className="text-xs text-gray-400 mb-2">Total: ${order.orders?.total || '0.00'}</Text>
+                  <Text className="text-xs text-gray-400 mb-2">Total: ${parseFloat(order.orders?.total || 0).toFixed(2)}</Text>
                   <View className="flex-row items-center justify-between">
                     <Text className="text-xs text-gray-500">
                       {new Date(order.orders?.created_at || Date.now()).toLocaleDateString()}

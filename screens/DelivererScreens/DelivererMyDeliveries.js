@@ -29,7 +29,7 @@ export default function DelivererMyDeliveries() {
       // Fetch orders assigned to this deliverer and not delivered
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .select('id, order_code, restaurant_name, total, created_at, user_id')
+        .select('id, order_code, restaurant_name, total, created_at, user_id, items, delivery_location, delivery_time')
         .eq('deliverer_id', session.user.id);
       if (orderError) throw orderError;
       const orderIds = orderData.map(order => order.id);
@@ -54,14 +54,46 @@ export default function DelivererMyDeliveries() {
         if (usersError) throw usersError;
         usersData.forEach(u => { userMap[u.id] = u.first_name; });
       }
+      
+      // Fetch restaurant details
+      const restaurantNames = [...new Set(orderData.map(order => order.restaurant_name))];
+      let restaurantMap = {};
+      if (restaurantNames.length > 0) {
+        const { data: restaurantsData, error: restaurantsError } = await supabase
+          .from('restaurant_master')
+          .select('restaurant_name, website, address')
+          .in('restaurant_name', restaurantNames);
+        if (restaurantsError) throw restaurantsError;
+        restaurantsData.forEach(r => { restaurantMap[r.restaurant_name] = r; });
+      }
       const ordersWithStatus = orderData
         .filter(order => statusMap[order.id] !== 'delivered')
         .map(order => ({
           ...order,
           status: statusMap[order.id] || 'processing',
           customerName: userMap[order.user_id] || 'Unknown',
+          restaurantDetails: restaurantMap[order.restaurant_name] || {},
         }));
-      setOrders(ordersWithStatus);
+
+      // Group orders by restaurant
+      const groupedOrders = ordersWithStatus.reduce((acc, order) => {
+        const restaurantName = order.restaurant_name || 'Unknown Restaurant';
+        if (!acc[restaurantName]) {
+          acc[restaurantName] = [];
+        }
+        acc[restaurantName].push(order);
+        return acc;
+      }, {});
+
+      // Convert to array format for FlatList
+      const groupedOrdersArray = Object.entries(groupedOrders).map(([restaurantName, orders]) => ({
+        type: 'restaurant',
+        restaurantName,
+        orders,
+        restaurantDetails: orders[0]?.restaurantDetails || {}
+      }));
+
+      setOrders(groupedOrdersArray);
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to fetch orders');
     } finally {
@@ -98,11 +130,22 @@ export default function DelivererMyDeliveries() {
   const updateStatus = async (orderId, newStatus) => {
     setUpdating(prev => ({ ...prev, [orderId]: true }));
     try {
+      const updateData = { order_id: orderId, status: newStatus };
+      
+      // If marking as delivered, add deliverer_id
+      if (newStatus === 'delivered') {
+        updateData.deliverer_id = session.user.id;
+      }
+      
       const { error } = await supabase
         .from('order_status')
-        .upsert({ order_id: orderId, status: newStatus }, { onConflict: ['order_id'] });
+        .upsert(updateData, { onConflict: ['order_id'] });
+        
       if (error) throw error;
-      setOrders(prev => prev.map(order => order.id === orderId ? { ...order, status: newStatus } : order));
+      
+      setOrders(prev => prev.map(order => 
+        order.id === orderId ? { ...order, status: newStatus } : order
+      ));
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to update status');
     }
@@ -146,36 +189,136 @@ export default function DelivererMyDeliveries() {
         ) : (
           <FlatList
             data={orders}
-            keyExtractor={item => item.id.toString()}
+            keyExtractor={(item, index) => `${item.type}-${index}`}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             renderItem={({ item }) => (
-              <View style={{ backgroundColor: '#f7f7f7', borderRadius: 16, padding: 16, marginBottom: 16 }}>
-                <Text style={{ fontWeight: 'bold', fontSize: 16, color: themeColors.purple }}>Order #{item.order_code}</Text>
-                <Text style={{ color: '#333', marginTop: 4 }}>Customer: {item.customerName}</Text>
-                <Text style={{ color: '#333', marginTop: 2 }}>Restaurant: {item.restaurant_name}</Text>
-                <Text style={{ color: '#333', marginTop: 2 }}>Total: ${item.total}</Text>
-                <Text style={{ color: '#333', marginTop: 2 }}>Placed: {new Date(item.created_at).toLocaleString()}</Text>
-                <Text style={{ color: '#333', marginTop: 2, marginBottom: 8 }}>Status: <Text style={{ fontWeight: 'bold' }}>{item.status}</Text></Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {STATUS_OPTIONS.map(status => (
-                    <TouchableOpacity
-                      key={status}
-                      onPress={() => updateStatus(item.id, status)}
-                      disabled={updating[item.id] || item.status === status}
-                      style={{
-                        backgroundColor: item.status === status ? themeColors.purple : '#eee',
-                        paddingVertical: 6,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        marginRight: 8,
-                        marginBottom: 8,
-                        opacity: updating[item.id] && item.status !== status ? 0.5 : 1,
-                      }}
-                    >
-                      <Text style={{ color: item.status === status ? 'white' : themeColors.purple, fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</Text>
-                    </TouchableOpacity>
-                  ))}
+              <View style={{ marginBottom: 20 }}>
+                {/* Restaurant Header */}
+                <View style={{ 
+                  backgroundColor: themeColors.purple, 
+                  borderRadius: 12, 
+                  padding: 16, 
+                  marginBottom: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ 
+                      fontWeight: 'bold', 
+                      fontSize: 18, 
+                      color: 'white',
+                      marginBottom: 4
+                    }}>
+                      🏪 {item.restaurantName}
+                    </Text>
+                    {item.restaurantDetails?.address && (
+                      <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
+                        📍 {item.restaurantDetails.address}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={{ 
+                    color: 'rgba(255,255,255,0.9)', 
+                    fontSize: 14, 
+                    fontWeight: '600' 
+                  }}>
+                    {item.orders.length} order{item.orders.length !== 1 ? 's' : ''}
+                  </Text>
                 </View>
+
+                {/* Orders for this restaurant */}
+                {item.orders.map((order) => (
+                  <View key={order.id} style={{ backgroundColor: '#f7f7f7', borderRadius: 16, padding: 16, marginBottom: 12 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 18, color: themeColors.purple, marginBottom: 8 }}>Order #{order.order_code}</Text>
+                    
+                    {/* Customer Info */}
+                    <View style={{ marginBottom: 8 }}>
+                      <Text style={{ fontWeight: 'bold', color: '#333', fontSize: 14 }}>👤 Customer</Text>
+                      <Text style={{ color: '#333', marginTop: 2 }}>{order.customerName}</Text>
+                    </View>
+
+                    {/* Delivery Location */}
+                    <View style={{ marginBottom: 8 }}>
+                      <Text style={{ fontWeight: 'bold', color: '#333', fontSize: 14 }}>📍 Delivery Location</Text>
+                      <Text style={{ color: '#333', marginTop: 2 }}>{order.delivery_location || 'Main Entrance - City College'}</Text>
+                    </View>
+
+                    {/* Order Items with Customizations */}
+                    <View style={{ marginBottom: 8 }}>
+                      <Text style={{ fontWeight: 'bold', color: '#333', fontSize: 14 }}>🍽️ Order Items</Text>
+                      {order.items && order.items.map((orderItem, index) => (
+                        <View key={index} style={{ marginTop: 4, paddingLeft: 8 }}>
+                          <Text style={{ color: '#333', fontWeight: '600' }}>
+                            {orderItem.quantity}x {orderItem.name} - ${(parseFloat(orderItem.price) * orderItem.quantity).toFixed(2)}
+                          </Text>
+                          {orderItem.customizations && typeof orderItem.customizations === 'object' && orderItem.customizations !== null && Object.keys(orderItem.customizations).length > 0 && (
+                            <View style={{ marginTop: 2, paddingLeft: 8 }}>
+                              <Text style={{ color: '#666', fontSize: 12, fontWeight: 'bold' }}>Customizations:</Text>
+                              {Object.entries(orderItem.customizations).map(([key, value]) => {
+                                // Skip empty or null values
+                                if (!value || value === '' || value === 0) return null;
+                                
+                                // Handle nested objects (like Rice: {regular: 0, extra: 0})
+                                if (typeof value === 'object' && value !== null) {
+                                  const selectedOptions = Object.entries(value)
+                                    .filter(([option, price]) => price !== 0 || option === 'regular' || option === 'light' || option === 'extra')
+                                    .map(([option, price]) => option)
+                                    .join(', ');
+                                  
+                                  if (selectedOptions) {
+                                    return (
+                                      <Text key={key} style={{ color: '#666', fontSize: 12, marginLeft: 4 }}>
+                                        • {key}: {selectedOptions}
+                                      </Text>
+                                    );
+                                  }
+                                  return null;
+                                }
+                                
+                                // Handle simple values
+                                return (
+                                  <Text key={key} style={{ color: '#666', fontSize: 12, marginLeft: 4 }}>
+                                    • {key}: {value}
+                                  </Text>
+                                );
+                              }).filter(Boolean)}
+                            </View>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* Order Summary */}
+                    <View style={{ marginBottom: 8 }}>
+                      <Text style={{ fontWeight: 'bold', color: '#333', fontSize: 14 }}>💰 Order Summary</Text>
+                      <Text style={{ color: '#333', marginTop: 2 }}>Total: ${parseFloat(order.total).toFixed(2)}</Text>
+                      <Text style={{ color: '#666', fontSize: 12, marginTop: 2 }}>Placed: {new Date(order.created_at).toLocaleString()}</Text>
+                    </View>
+
+                    <Text style={{ color: '#333', marginTop: 2, marginBottom: 8 }}>Status: <Text style={{ fontWeight: 'bold' }}>{order.status}</Text></Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {STATUS_OPTIONS.map(status => (
+                        <TouchableOpacity
+                          key={status}
+                          onPress={() => updateStatus(order.id, status)}
+                          disabled={updating[order.id] || order.status === status}
+                          style={{
+                            backgroundColor: order.status === status ? themeColors.purple : '#eee',
+                            paddingVertical: 6,
+                            paddingHorizontal: 12,
+                            borderRadius: 8,
+                            marginRight: 8,
+                            marginBottom: 8,
+                            opacity: updating[order.id] && order.status !== status ? 0.5 : 1,
+                          }}
+                        >
+                          <Text style={{ color: order.status === status ? 'white' : themeColors.purple, fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                ))}
               </View>
             )}
           />

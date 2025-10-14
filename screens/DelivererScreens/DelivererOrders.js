@@ -83,10 +83,10 @@ export default function DelivererOrders() {
         .update({ deliverer_id: session.user.id })
         .eq('id', orderId);
       if (error) throw error;
-      // Also set status to 'processing' in order_status
+      // Also set status to 'processing' in order_status with deliverer_id
       const { error: statusError } = await supabase
         .from('order_status')
-        .upsert({ order_id: orderId, status: 'processing' }, { onConflict: ['order_id'] });
+        .upsert({ order_id: orderId, status: 'processing', deliverer_id: session.user.id }, { onConflict: ['order_id'] });
       if (statusError) throw statusError;
       setOrders(prev => prev.filter(order => order.id !== orderId));
     } catch (err) {
@@ -143,7 +143,7 @@ export default function DelivererOrders() {
                 <Text style={{ fontWeight: 'bold', fontSize: 16, color: themeColors.purple }}>Order #{item.order_code}</Text>
                 <Text style={{ color: '#333', marginTop: 4 }}>Customer: {item.customerName}</Text>
                 <Text style={{ color: '#333', marginTop: 2 }}>Restaurant: {item.restaurant_name}</Text>
-                <Text style={{ color: '#333', marginTop: 2 }}>Total: ${item.total}</Text>
+                <Text style={{ color: '#333', marginTop: 2 }}>Total: ${parseFloat(item.total).toFixed(2)}</Text>
                 <Text style={{ color: '#333', marginTop: 2 }}>Placed: {new Date(item.created_at).toLocaleString()}</Text>
                 <View style={{ flexDirection: 'row', marginTop: 12 }}>
                   <TouchableOpacity

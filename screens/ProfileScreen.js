@@ -199,6 +199,10 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.purple }} edges={['top', 'left', 'right']}>
       <StatusBar style="light" backgroundColor={themeColors.purple} />
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
       {/* Purple Banner with Go Back Button, Profile Circle and Info */}
       <View style={{
         backgroundColor: themeColors.purple,
@@ -464,6 +468,7 @@ export default function ProfileScreen() {
         </Animated.View>
         
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

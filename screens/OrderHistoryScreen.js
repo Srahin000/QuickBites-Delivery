@@ -117,8 +117,28 @@ export default function OrderHistoryScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="px-6 py-4 bg-white border-b border-gray-100">
-        <Text className="text-2xl font-bold text-gray-800">Order History</Text>
-        <Text className="text-gray-600 mt-1">Your completed deliveries</Text>
+        <View className="flex-row justify-between items-start">
+          <View className="flex-1">
+            <Text className="text-2xl font-bold text-gray-800">Order History</Text>
+            <Text className="text-gray-600 mt-1">Your completed deliveries</Text>
+          </View>
+          <TouchableOpacity
+            onPress={onRefresh}
+            disabled={refreshing}
+            style={{
+              backgroundColor: '#F3F4F6',
+              padding: 8,
+              borderRadius: 8,
+              opacity: refreshing ? 0.6 : 1
+            }}
+          >
+            <Icon.RefreshCcw 
+              size={20} 
+              color="#6B7280" 
+              style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {orders.length === 0 ? (

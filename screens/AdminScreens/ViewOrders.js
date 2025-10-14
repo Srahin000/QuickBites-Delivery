@@ -98,8 +98,8 @@ export default function ViewOrders() {
           renderItem={({ item }) => (
             <View className="border p-4 mb-3 rounded-lg shadow bg-white">
               <Text className="text-sm text-gray-500">Order #{item.order_code}</Text>
-              <Text className="text-lg font-semibold">{item.restaurant_name}</Text>
-              <Text>Total: ${item.total}</Text>
+              <Text className="text-lg font-semibold">{item.restaurant_name || 'Restaurant not specified'}</Text>
+              <Text>Total: ${parseFloat(item.total).toFixed(2)}</Text>
               <Text>Status: {item.status}</Text>
               <View className="flex-row justify-around mt-3">
                 <TouchableOpacity

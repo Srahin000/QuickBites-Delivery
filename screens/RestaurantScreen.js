@@ -35,32 +35,32 @@ export default function RestaurantScreen() {
           style={{ borderTopLeftRadius: 40, borderTopRightRadius: 40 }}
           className="bg-white -mt-12 pt-6 px-4"
         >
-          <Text className="text-3xl font-bold">{item.name}</Text>
+          <Text className="text-3xl font-bold">{item?.restaurant_name || 'Unknown Restaurant'}</Text>
 
           <View className="flex-row space-x-2 my-1">
             <View className="flex-row items-center space-x-1">
               <Image source={require("../assets/star/star.webp")} className="h-4 w-4" />
               <Text className="text-xs">
-                <Text className="text-green-700">{item.stars}</Text>
+                <Text className="text-green-700">{item?.ratings || 'N/A'}</Text>
                 <Text className="text-gray-700">
-                  ({item.reviews} reviews) ·{" "}
-                  <Text className="font-semibold">{item.category}</Text>
+                  ({item?.reviews || 0} reviews) ·{" "}
+                  <Text className="font-semibold">{item?.category || 'Unknown'}</Text>
                 </Text>
               </Text>
             </View>
 
             <View className="flex-row items-center space-x-1">
               <Icon.MapPin height="15" width="15" color="gray" />
-              <Text className="text-gray-700 text-xs">Nearby · {item.address}</Text>
+              <Text className="text-gray-700 text-xs">Nearby · {item?.address || 'Address not available'}</Text>
             </View>
           </View>
 
-          <Text className="mt-2 text-gray-600">{item.description}</Text>
+          <Text className="mt-2 text-gray-600">{item?.description || ''}</Text>
         </View>
 
         <View className="pb-36 bg-white">
           <Text className="px-4 py-4 text-2xl font-bold">Menu</Text>
-          {item.dishes.map((dish, index) => (
+          {item.menu_items?.map((dish, index) => (
             <DishRow item={{ ...dish }} restaurant={item} key={index} />
           ))}
         </View>

@@ -87,21 +87,20 @@ export default function OrdersScreen() {
     fetchUserOrders();
   }, [activeTab]);
 
-  // Listen for refresh parameter from tab press
+  // Add focus listener for tab navigation
   useEffect(() => {
-    const unsubscribe = navigation.addListener('state', (e) => {
-      const state = e.data.state;
-      if (state && state.routes) {
-        const currentRoute = state.routes[state.index];
-        if (currentRoute.name === 'Orders' && currentRoute.params?.refresh) {
-          // Tab was pressed, trigger refresh
-          onRefresh();
-        }
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('OrdersScreen: Focus event triggered');
+      if (!refreshing) {
+        onRefresh();
       }
     });
 
     return unsubscribe;
-  }, [navigation, onRefresh]);
+  }, [navigation, onRefresh, refreshing]);
+
+  // Listen for refresh parameter from tab press - REMOVED to prevent conflicts
+  // Use focus listener instead for better tab navigation handling
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -149,8 +148,28 @@ export default function OrdersScreen() {
     <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.purple }}>
       {/* Header */}
       <View className="px-6 pt-4 pb-6">
-        <Text className="text-2xl font-bold text-white mb-2">Your Orders</Text>
-        <Text className="text-white/80 text-sm">Track your food delivery</Text>
+        <View className="flex-row justify-between items-start mb-2">
+          <View className="flex-1">
+            <Text className="text-2xl font-bold text-white mb-2">Your Orders</Text>
+            <Text className="text-white/80 text-sm">Track your food delivery</Text>
+          </View>
+          <TouchableOpacity
+            onPress={onRefresh}
+            disabled={refreshing}
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              padding: 8,
+              borderRadius: 8,
+              opacity: refreshing ? 0.6 : 1
+            }}
+          >
+            <Icon.RefreshCcw 
+              size={20} 
+              color="white" 
+              style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
+            />
+          </TouchableOpacity>
+        </View>
         
         {/* Tab Navigation */}
         <View className="flex-row bg-white/20 rounded-xl p-1 mt-4">
@@ -231,7 +250,7 @@ export default function OrdersScreen() {
                   {/* Order Details */}
                   <View className="flex-row justify-between items-center">
                     <Text className="text-lg font-bold" style={{ color: themeColors.purple }}>
-                      ${item.total}
+                      ${parseFloat(item.total).toFixed(2)}
                     </Text>
                     <View className="items-end">
                       <Text className="text-xs text-gray-500">

@@ -3,189 +3,107 @@ import React, { useState, useEffect } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Icon from 'react-native-feather';
-import { useStripe } from '@stripe/stripe-react-native';
-import supabase from "../supabaseClient"
 import { themeColors } from '../theme';
 import { useCart } from '../context/CartContext';
-import { useSession } from '../context/SessionContext-v2';
-import TimeSlotModal from '../components/TimeSlotModal';
-import LocationModal from '../components/LocationModal';
+
+// Helper function to format customizations nicely
+const formatCustomizations = (customizations) => {
+  console.log('formatCustomizations called with:', customizations);
+  
+  if (!customizations || Object.keys(customizations).length === 0) {
+    console.log('No customizations found, returning null');
+    return null;
+  }
+
+  const formattedCustomizations = [];
+  const processedGroups = new Set();
+  
+  Object.entries(customizations).forEach(([key, value]) => {
+    // Skip option keys and false/null values
+    if (key.includes('option') || value === false || value === null || value === undefined) {
+      return;
+    }
+    
+    // Extract group name (e.g., "Size_Large" -> "Size")
+    const groupMatch = key.match(/^([^_]+)_(.+)$/);
+    if (!groupMatch) return;
+    
+    const groupName = groupMatch[1];
+    const optionName = groupMatch[2];
+    
+    // Skip if we've already processed this group
+    if (processedGroups.has(groupName)) {
+      return;
+    }
+    
+    // Only process if the value is true (selected)
+    if (value === true) {
+      const displayGroup = groupName.charAt(0).toUpperCase() + groupName.slice(1).replace(/_/g, ' ');
+      const displayOption = optionName.charAt(0).toUpperCase() + optionName.slice(1).replace(/_/g, ' ');
+      
+      formattedCustomizations.push(`${displayGroup}: ${displayOption}`);
+      processedGroups.add(groupName);
+    }
+  });
+
+  return formattedCustomizations;
+};
 
 export default function CartScreen() {
-  const [serviceOpen, setServiceOpen] = useState(false);
-  const [selectedTime, setSelectedTime] = useState('10:00 AM');
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
-  const [showTimeSlotModal, setShowTimeSlotModal] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState(null);
-  const [showLocationModal, setShowLocationModal] = useState(false);
-  const [showDevPay, setShowDevPay] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [timeOverride, setTimeOverride] = useState(false);
-  const [instantPayEnabled, setInstantPayEnabled] = useState(false);
-
-  const today = new Date();
-  const selectedDate = today;
-  const currentHour = today.getHours();
-
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const [forceUpdate, setForceUpdate] = useState(0);
   const navigation = useNavigation();
   const route = useRoute();
   const { cartItems, clearCart, restaurant, addToCart, removeFromCart } = useCart();
-  const { session } = useSession();
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = 0.20 * subtotal;
-  const tax = 0.08875 * subtotal;
-  const total = subtotal + deliveryFee + tax;
-  const isInTab = route.name === 'Cart';
 
-  // Check if time slots are available (will be updated by TimeSlotModal)
-  const hasTimeSlots = selectedTimeSlot !== null;
-  const hasLocation = selectedLocation !== null;
-  const canPlaceOrder = hasTimeSlots && hasLocation;
-
-  const isWeekday = today.getDay() >= 1 && today.getDay() <= 5;
-  const isOrderAllowed = serviceOpen && (timeOverride || (isWeekday && canPlaceOrder));
-  const canUseInstantPay = instantPayEnabled && canPlaceOrder;
+  // Check if cart has items from multiple restaurants
+  const uniqueRestaurants = [...new Set(cartItems.map(item => item.restaurant_name))];
+  const hasMixedRestaurants = uniqueRestaurants.length > 1;
+  const displayRestaurant = hasMixedRestaurants ? 'Mixed Order' : (restaurant?.restaurant_name || restaurant?.name || 'Restaurant');
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
-    // Add logic to reload cart data if needed
     setTimeout(() => {
       setRefreshing(false);
     }, 1000);
   }, []);
 
-  const handleTimeSlotSelected = (timeSlot) => {
-    setSelectedTimeSlot(timeSlot);
-    setSelectedTime(timeSlot.time);
-    setShowTimeSlotModal(false);
-  };
-
-  const handleLocationSelected = (location) => {
-    setSelectedLocation(location);
-    setShowLocationModal(false);
-  };
-
-  const formatTime = (timeSlot) => {
-    const hour = timeSlot.hours;
-    const minute = timeSlot.minutes ? timeSlot.minutes.toString().padStart(2, '0') : '00';
-    const ampm = timeSlot.ampm;
-    return `${hour}:${minute} ${ampm}`;
-  };
-
+  // Force UI update when cart changes
   useEffect(() => {
-    const fetchServiceStatus = async () => {
-      const { data: prodStatus, error: prodError } = await supabase
-        .from('service_approval')
-        .select('open')
-        .eq('id', 1)
-        .single();
-  
-      const { data: devStatus, error: devError } = await supabase
-        .from('service_approval')
-        .select('open')
-        .eq('id', 2)
-        .single();
-
-      const { data: timeOverrideStatus, error: timeOverrideError } = await supabase
-        .from('service_approval')
-        .select('open')
-        .eq('id', 3)
-        .single();
-  
-      if (prodError) console.error('Error fetching prod status:', prodError);
-      else setServiceOpen(prodStatus.open);
-  
-      if (devError) console.error('Error fetching dev status:', devError);
-      else {
-        setShowDevPay(!devStatus.open); // 👈 if dev "open" = true, hide Dev Pay
-        setInstantPayEnabled(devStatus.open); // 👈 if ID 2 "open" = true, enable instant pay
-      }
-
-      if (timeOverrideError) console.error('Error fetching time override status:', timeOverrideError);
-      else setTimeOverride(timeOverrideStatus.open); // 👈 if ID 3 "open" = true, bypass time restrictions
-    };
-  
-    fetchServiceStatus();
-  }, []);
-  
-
-  useEffect(() => {
-    const fetchServiceStatus = async () => {
-      const { data, error } = await supabase
-        .from('service_approval')
-        .select('open')
-        .eq('id', 1)
-        .single();
-
-      if (error) {
-        console.error('Error fetching service status:', error);
-      } else {
-        setServiceOpen(data.open);
-      }
-    };
-
-    fetchServiceStatus();
-  }, []);
-
-  useEffect(() => {
-    // Show dev pay button after 5 seconds
-    const timer = setTimeout(() => {
-      setShowDevPay(true);
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, []);
+    setForceUpdate(prev => prev + 1);
+  }, [cartItems.length]);
 
   if (!restaurant) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.purple }} edges={[ 'left', 'right']}>
-         <View style={{
-        backgroundColor: themeColors.purple,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 32,
-        paddingBottom: 16,
-        width: '100%',
-      }}>
-        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 28, marginBottom: 4 }}>Your Cart</Text>
-        <Text style={{ color: 'white', opacity: 0.8, fontSize: 14 }}>Review and checkout your order</Text>
-      </View>
-      <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={{
-            position: 'absolute',
-            left: 24,
-            top: 32,
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: themeColors.yellow,
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.15,
-            shadowRadius: 4,
-            elevation: 4,
-          }}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Icon.ArrowLeft size={24} color="white" />
-        </TouchableOpacity>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: '#fff' }} edges={['left', 'right']}>
         <View className="flex-1 justify-center items-center px-6 py-12 bg-white">
           <View className="items-center">
-            <View className="w-24 h-24 rounded-full bg-gray-100 items-center justify-center mb-6">
-              <Icon.ShoppingCart className="w-12 h-12 text-gray-400" />
-            </View>
-            <Text className="text-xl font-semibold text-gray-600 mb-2">
-              Your cart is empty
+            <Text className="text-2xl font-bold text-gray-800 mb-8 text-center">
+              Add more items to view cart
             </Text>
-            <Text className="text-gray-500 text-center px-8 mb-8">
-              Add items to your cart to start ordering
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ 
+                backgroundColor: themeColors.purple,
+                borderRadius: 20,
+                paddingVertical: 18,
+                paddingHorizontal: 32,
+                shadowColor: themeColors.purple,
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.4,
+                shadowRadius: 12,
+                elevation: 8,
+              }}
+            >
+              <View className="flex-row items-center">
+                <Icon.ArrowLeft className="w-6 h-6 text-white mr-3" />
+                <Text className="text-white font-bold text-xl">
+                  Browse Menu
             </Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
       </SafeAreaView>
@@ -193,9 +111,8 @@ export default function CartScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.purple }} edges={[ 'left', 'right']}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: themeColors.purple }} edges={['left', 'right']}>
       {/* Purple Header */}
-
       <View style={{
         backgroundColor: themeColors.purple,
         borderBottomLeftRadius: 32,
@@ -210,47 +127,39 @@ export default function CartScreen() {
         shadowRadius: 16,
         elevation: 8,
       }}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={{
-            position: 'absolute',
-            left: 24,
-            top: 32,
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: themeColors.yellow,
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.15,
-            shadowRadius: 4,
-            elevation: 4,
-          }}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Icon.ArrowLeft size={24} color="white" />
-        </TouchableOpacity>
         <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 28 }}>Your Cart</Text>
+        <Text style={{ color: 'white', opacity: 0.8, fontSize: 14, marginTop: 4 }}>
+          Browse • Customize • Add More
+        </Text>
       </View>
-      <View
-        style={
-            {
-                flex: 1,
-                backgroundColor: '#fff',
-                borderTopLeftRadius: 0,
-                borderTopRightRadius: 0,
-                marginTop: 0,
-                paddingTop: 0,
-                paddingHorizontal: 0,
-                shadowColor: 'transparent',
-                elevation: 0,
-              }
-            
-        }
-      >
+
+      {/* Main Content */}
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
+        {/* Header with Order Items and Clear All */}
+        {cartItems.length > 0 && (
+          <View className="px-6 py-4 bg-white border-b border-gray-100">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-lg font-semibold text-gray-800">Order Items</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    'Clear Cart',
+                    'Are you sure you want to remove all items from your cart?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Clear', style: 'destructive', onPress: clearCart }
+                    ]
+                  );
+                }}
+                className="flex-row items-center"
+              >
+                <Icon.Trash2 className="w-4 h-4 text-red-500 mr-1" />
+                <Text className="text-red-500 text-sm font-medium">Clear All</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 50 }}
@@ -259,381 +168,214 @@ export default function CartScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
+          {/* Cart Items with Customizations */}
         {cartItems.length > 0 ? (
-          cartItems.map((dish, index) => (
-              <View key={index} className="flex-row items-center space-x-4 px-4 py-3 bg-white rounded-2xl mx-2 mb-3 shadow-lg">
+            <View className="px-4">
+              {cartItems.map((item, index) => {
+                const customizations = formatCustomizations(item.customizations);
+                return (
+                  <View key={index} className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-gray-100">
+                    {/* Item Header */}
+                    <View className="flex-row items-center justify-between mb-3">
+                      <View className="flex-row items-center flex-1">
+                        <Image className="h-12 w-12 rounded-full mr-3" source={{ uri: item.image_url }} />
+                        <View className="flex-1">
+                          <Text className="text-lg font-semibold text-gray-800">{item.name}</Text>
+                          <Text className="text-sm text-purple-600 font-medium">{item.restaurant_name}</Text>
+                          <Text className="text-gray-600">${parseFloat(item.price).toFixed(2)} each</Text>
+                        </View>
+                      </View>
               <View className="flex-row items-center">
                 <TouchableOpacity
-                  className="p-1 rounded-full"
-                    style={{ backgroundColor: themeColors.purple }}
-                  onPress={() => removeFromCart(dish)}
+                          onPress={() => removeFromCart(item)}
+                          className="w-8 h-8 rounded-full bg-gray-200 items-center justify-center"
                 >
-                  <Icon.Minus strokeWidth={2} height={20} width={20} stroke="white" />
+                          <Icon.Minus size={16} color="#6B7280" />
                 </TouchableOpacity>
-                  <Text className="px-3 font-bold text-lg">{dish.quantity}</Text>
+                        <Text className="mx-4 text-lg font-semibold text-gray-800 min-w-[30px] text-center">
+                          {item.quantity}
+                        </Text>
                 <TouchableOpacity
-                  className="p-1 rounded-full"
-                    style={{ backgroundColor: themeColors.purple , marginRight: 20}}
-                  onPress={() => addToCart(dish, restaurant)}
-                >
-                  <Icon.Plus strokeWidth={2} height={20} width={20} stroke="white" />
+                          onPress={() => {
+                            try {
+                              console.log('Plus button clicked - Item:', item);
+                              console.log('Plus button clicked - Restaurant:', restaurant);
+                              
+                              if (item && item.id && restaurant) {
+                                console.log('Calling addToCart with:', { item, restaurant });
+                                addToCart(item, restaurant);
+                              } else {
+                                console.error('Missing required properties:', { 
+                                  itemId: item?.id, 
+                                  itemExists: !!item, 
+                                  restaurantExists: !!restaurant 
+                                });
+                                Alert.alert('Error', 'Unable to add item. Please try again.');
+                              }
+                            } catch (error) {
+                              console.error('Error adding item to cart:', error);
+                              Alert.alert('Error', 'Failed to add item to cart. Please try again.');
+                            }
+                          }}
+                          className="w-8 h-8 rounded-full bg-purple-600 items-center justify-center"
+                        >
+                          <Icon.Plus size={16} color="white" />
                 </TouchableOpacity>
               </View>
-              <Image className="h-14 w-14 rounded-full" source={{ uri: dish.image_url }} />
-                <Text className="flex-1 font-bold text-gray-700 ml-4 text-base">{dish.name}</Text>
-              <Text className="font-semibold text-base ml-4 pr-2">${dish.price}</Text>
-            </View>
-          ))
-        ) : (
-          <Text className="text-center text-gray-500 mt-10">Your cart is empty.</Text>
-        )}
-          {/* Summary section is always scrollable with the cart */}
-      {cartItems.length > 0 && (
-            <View style={{ backgroundColor: themeColors.bgColor(0.08) }} className="p-6 px-8 rounded-t-3xl space-y-4 shadow-lg mt-4">
-          <View className="flex-row justify-between">
-            <Text className="text-gray-700">Subtotal</Text>
-            <Text className="text-gray-700">${subtotal.toFixed(2)}</Text>
-          </View>
-          <View className="flex-row justify-between">
-            <Text className="text-gray-700">Delivery Fee</Text>
-            <Text className="text-gray-700">${deliveryFee.toFixed(2)}</Text>
-          </View>
-          <View className="flex-row justify-between">
-            <Text className="text-gray-700">Tax (8.875%)</Text>
-            <Text className="text-gray-700">${tax.toFixed(2)}</Text>
-          </View>
-          <View className="flex-row justify-between">
-            <Text className="text-gray-700 font-extrabold">Total</Text>
-            <Text className="text-gray-700 font-extrabold">${total.toFixed(2)}</Text>
-          </View>
-          <View className="mt-4">
-            <Text className="text-gray-700 font-semibold">Delivery Date:</Text>
-            <Text>{selectedDate.toDateString()}</Text>
-            <Text className="text-gray-700 font-semibold mt-2">Select Delivery Time:</Text>
-            <TouchableOpacity
-              onPress={() => setShowTimeSlotModal(true)}
-              className="border rounded px-3 py-3 bg-white flex-row items-center justify-between"
-            >
-              <View>
-                <Text className="text-gray-900 font-medium">
-                  {selectedTimeSlot ? formatTime(selectedTimeSlot) : 'Tap to select time'}
-                </Text>
-                {selectedTimeSlot && (
-                  <Text className="text-gray-500 text-sm">
-                    {selectedTimeSlot.counter}/10 orders • {selectedTimeSlot.counter >= 10 ? 'Full' : 'Available'}
-                  </Text>
-                )}
-              </View>
-              <Icon.ChevronRight size={20} color="#6B7280" />
-            </TouchableOpacity>
-            
-            {!hasTimeSlots && (
-                <Text className="text-red-600 font-semibold">Please select a delivery time</Text>
-              )}
+                    </View>
 
-            <Text className="text-gray-700 font-semibold mt-2">Select Delivery Location:</Text>
-            <TouchableOpacity
-              onPress={() => setShowLocationModal(true)}
-              className="border rounded px-3 py-3 bg-white flex-row items-center justify-between"
-            >
-              <View>
-                <Text className="text-gray-900 font-medium">
-                  {selectedLocation ? selectedLocation.location : 'Tap to select location'}
-                </Text>
-                {selectedLocation && (
-                  <Text className="text-gray-500 text-sm">
-                    {selectedLocation.address || selectedLocation.description}
-                  </Text>
-                )}
-              </View>
-              <Icon.ChevronRight size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {!hasLocation && (
-              <Text className="text-red-600 font-semibold">Please select a delivery location</Text>
-            )}
-          </View>
-          {!isOrderAllowed ? (
-            <Text className="text-red-600 text-center text-lg font-semibold">
-              {!canPlaceOrder ? 
-                'Please select both delivery time and location' :
-                '🚫 Service unavailable. Deliveries run Mon–Fri, 10AM–3PM.\n📢 Check our Instagram for live updates.'
-              }
-            </Text>
-          ) : canPlaceOrder ? (
-            <View className="justify-end items-center p-4 space-y-4">
-              {/* 🟢 Place Order Button - Show regular payment or instant pay based on ID 2 */}
-              {canUseInstantPay ? (
-                <TouchableOpacity
-                  onPress={async () => {
-                    const instantCode = Math.floor(100000 + Math.random() * 900000);
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (!session?.user) return;
-                    const user = session.user;
+                    {/* Customizations Display */}
+                    {item.customizations && Object.keys(item.customizations).length > 0 && (
+                      <View className="bg-gray-50 rounded-lg p-3 mb-3">
+                        <Text className="text-sm font-medium text-gray-700 mb-2">Customizations:</Text>
+                        {customizations && customizations.length > 0 ? (
+                          customizations.map((customization, idx) => (
+                            <Text key={idx} className="text-sm text-gray-600 mb-1">
+                              • {customization}
+                            </Text>
+                          ))
+                        ) : null}
+                      </View>
+                    )}
 
-                    // Insert order into orders table
-                    const { data: orderData, error: orderError } = await supabase.from('orders').insert([
-                      {
-                        user_id: user.id,
-                        restaurant_id: restaurant.id,
-                        restaurant_name: restaurant.name,
-                        items: cartItems,
-                        total,
-                        status: 'instant-paid',
-                        created_at: new Date(),
-                        order_code: instantCode.toString(),
-                        delivery_location: selectedLocation?.location || "Main Entrance - City College",
-                        delivery_time: selectedTimeSlot?.id || null,
-                      },
-                    ]).select().single();
-
-                    if (orderError) {
-                      console.error("Order insert error:", orderError);
-                      Alert.alert('Error', 'Failed to create order. Please try again.');
-                      return;
-                    }
-
-                    // Insert status into order_status table
-                    const { error: statusError } = await supabase.from('order_status').insert([
-                      {
-                        order_id: orderData.id,
-                        status: 'submitted',
-                        created_at: new Date(),
-                      },
-                    ]);
-
-                    if (statusError) {
-                      console.error("Status insert error:", statusError);
-                      // Don't show error to user as order was created successfully
-                    }
-
-                    clearCart();
-                    navigation.navigate('Delivery', {
-                      restaurant,
-                      orderCode: instantCode,
-                      cartItems,
-                      subtotal,
-                      deliveryFee,
-                      tax,
-                      totalAmount: subtotal + deliveryFee + tax,
-                      selectedLocation,
-                      selectedTimeSlot,
-                    });
-                  }}
-                  className="w-3/4"
-                >
-                  <View style={{ backgroundColor: '#10b981' }} className="rounded-2xl p-4 shadow-lg">
-                    <Text className="text-2xl font-bold text-white text-center">
-                      Instant Pay
-                    </Text>
+                    {/* Item Total */}
+                    <View className="flex-row justify-between items-center pt-2 border-t border-gray-100">
+                      <Text className="text-gray-600">Total for this item</Text>
+                      <Text className="text-lg font-semibold text-gray-800">
+                        ${(parseFloat(item.price) * item.quantity).toFixed(2)}
+                      </Text>
+                    </View>
                   </View>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                onPress={async () => {
-                  let newOrderCode;
-                  let isUnique = false;
-
-                  while (!isUnique) {
-                    newOrderCode = Math.floor(100000 + Math.random() * 900000);
-                  
-                    const startOfDay = new Date();
-                    startOfDay.setHours(0, 0, 0, 0);
-                  
-                    const endOfDay = new Date();
-                    endOfDay.setHours(23, 59, 59, 999);
-                  
-                    const { data: existingOrders, error: fetchError } = await supabase
-                      .from('orders')
-                      .select('order_code, created_at')
-                      .gte('created_at', startOfDay.toISOString())
-                      .lte('created_at', endOfDay.toISOString());
-                  
-                    if (fetchError) {
-                      console.error('Fetch error:', fetchError);
-                      break;
-                    }
-                  
-                    const usedCodes = existingOrders.map(order => order.order_code);
-                    if (!usedCodes.includes(newOrderCode.toString())) isUnique = true;
-                  }
-
-                  try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (!session?.user) return;
-                    const user = session.user;
-
-                    console.log('Creating payment intent for order:', newOrderCode, 'Total:', total);
-                    console.log('Stripe publishable key:', process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY?.substring(0, 20) + '...');
-                    console.log('Is test key:', process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith('pk_test_'));
-                    console.log('Is live key:', process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith('pk_live_'));
-                    
-                    // Get the session token for authorization
-                    const token = session?.access_token;
-                    
-                    if (!token) {
-                      console.error('No session token found');
-                      return Alert.alert('Authentication Error', 'Please sign in again to continue.');
-                    }
-                    
-                    const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL || 'https://pgouwzuufnnhthwrewrv.functions.supabase.co'}/create-payment-intent`, {
-                      method: 'POST',
-                      headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                      },
-                      body: JSON.stringify({ cartItems, restaurant, total, orderCode: newOrderCode }),
-                    });
-
-                    const data = await response.json();
-                    console.log('Payment intent response:', data);
-                    
-                    if (!response.ok) {
-                      console.error('Payment intent creation failed:', data);
-                      return Alert.alert('Payment Error', data.message || 'Failed to create payment. Please try again.');
-                    }
-
-                    const { paymentIntentClientSecret, paymentIntentId } = data;
-                    
-                    if (!paymentIntentClientSecret) {
-                      console.error('No payment intent client secret received');
-                      return Alert.alert('Payment Error', 'Invalid payment response. Please try again.');
-                    }
-                    
-                    console.log('Payment intent created:', paymentIntentId);
-                    console.log('Initializing payment sheet with client secret:', paymentIntentClientSecret?.substring(0, 20) + '...');
-
-                    const { error: initError } = await initPaymentSheet({
-                      paymentIntentClientSecret,
-                      merchantDisplayName: 'QuickBites',
-                      returnURL: 'quickbites://stripe-redirect',
-                    });
-
-                    if (initError) {
-                      console.error('Payment sheet init error:', initError);
-                      console.error('Error code:', initError.code);
-                      console.error('Error message:', initError.message);
-                      return Alert.alert('Payment Setup Error', `Failed to initialize payment: ${initError.message}`);
-                    }
-
-                    console.log('Presenting payment sheet...');
-                    const { error: presentError } = await presentPaymentSheet();
-
-                    if (presentError) {
-                      console.error('Payment presentation error:', presentError);
-                      console.error('Error code:', presentError.code);
-                      console.error('Error message:', presentError.message);
-                      
-                      if (presentError.code === 'Canceled') {
-                        return Alert.alert('Payment Cancelled', 'You cancelled the payment.');
-                      }
-                      return Alert.alert('Payment Failed', presentError.message);
-                    }
-
-                    // Insert order into orders table
-                    const { data: orderData, error: orderError } = await supabase.from('orders').insert([
-                      {
-                        user_id: user.id,
-                        restaurant_id: restaurant.id,
-                        restaurant_name: restaurant.name,
-                        items: cartItems,
-                        total,
-                        status: 'paid',
-                        created_at: new Date(),
-                        order_code: newOrderCode.toString(),
-                        delivery_location: selectedLocation?.location || "Main Entrance - City College",
-                        delivery_time: selectedTimeSlot?.id || null,
-                      },
-                    ]).select().single();
-
-                    if (orderError) {
-                      console.error("Order insert error:", orderError);
-                      Alert.alert('Error', 'Payment successful but failed to create order. Please contact support.');
-                      return;
-                    }
-
-                    // Insert status into order_status table
-                    const { error: statusError } = await supabase.from('order_status').insert([
-                      {
-                        order_id: orderData.id,
-                        status: 'submitted',
-                        created_at: new Date(),
-                      },
-                    ]);
-
-                    if (statusError) {
-                      console.error("Status insert error:", statusError);
-                      // Don't show error to user as order was created successfully
-                    }
-
-                    // Increment the time slot counter after successful payment
-                    if (selectedTimeSlot?.id) {
-                      try {
-                        const { error: counterError } = await supabase
-                          .from('delivery_times')
-                          .update({ counter: selectedTimeSlot.counter + 1 })
-                          .eq('id', selectedTimeSlot.id);
-
-                        if (counterError) {
-                          console.error('Error updating time slot counter:', counterError);
-                          // Don't show error to user as payment was successful
-                        } else {
-                          console.log('Time slot counter incremented successfully');
-                        }
-                      } catch (err) {
-                        console.error('Error updating time slot counter:', err);
-                        // Don't show error to user as payment was successful
-                      }
-                    }
-
-                    Alert.alert('Success', 'Your payment was successful!');
-                    clearCart();
-                    navigation.navigate('Delivery', { 
-                      restaurant, 
-                      orderCode: newOrderCode,
-                      cartItems,
-                      subtotal,
-                      deliveryFee,
-                      tax,
-                      totalAmount: subtotal + deliveryFee + tax,
-                      selectedLocation,
-                      selectedTimeSlot,
-                    });
-                  } catch (error) {
-                    console.error('Payment error:', error);
-                    Alert.alert('Network error', error.message);
-                  }
+                );
+              })}
+            </View>
+          ) : (
+            <View className="flex-1 justify-center items-center px-6 py-12">
+              <Text className="text-2xl font-bold text-gray-800 mb-8 text-center">
+                Add more items to view cart
+              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={{ 
+                  backgroundColor: themeColors.purple,
+                  borderRadius: 20,
+                  paddingVertical: 18,
+                  paddingHorizontal: 32,
+                  shadowColor: themeColors.purple,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.4,
+                  shadowRadius: 12,
+                  elevation: 8,
                 }}
-                className="w-3/4"
               >
-                    <View style={{ backgroundColor: themeColors.purple }} className="rounded-2xl p-4 shadow-lg">
-                      <Text className="text-2xl font-bold text-white text-center">
-                    Place Order
+                <View className="flex-row items-center">
+                  <Icon.ArrowLeft className="w-6 h-6 text-white mr-3" />
+                  <Text className="text-white font-bold text-xl">
+                    Browse Menu
                   </Text>
                 </View>
               </TouchableOpacity>
-              )}
             </View>
-          ) : null}
+          )}
+
+          {/* Order Summary */}
+      {cartItems.length > 0 && (
+            <View className="px-4 mt-4">
+              <View className="bg-gradient-to-r from-purple-50 to-yellow-50 rounded-2xl p-4 border border-purple-100">
+                <Text className="text-lg font-semibold text-gray-800 mb-3">Order Summary</Text>
+                <View className="space-y-2">
+          <View className="flex-row justify-between">
+                    <Text className="text-gray-600">Subtotal</Text>
+            <Text className="text-gray-700">${subtotal.toFixed(2)}</Text>
+          </View>
+          <View className="flex-row justify-between">
+                    <Text className="text-gray-600">Delivery Fee</Text>
+                    <Text className="text-gray-700">${(0.20 * subtotal).toFixed(2)}</Text>
+          </View>
+          <View className="flex-row justify-between">
+                    <Text className="text-gray-600">Tax (8.875%)</Text>
+                    <Text className="text-gray-700">${(0.08875 * subtotal).toFixed(2)}</Text>
+          </View>
+                  <View className="border-t border-gray-200 pt-2 mt-2">
+          <View className="flex-row justify-between">
+                      <Text className="text-lg font-bold text-gray-900">Total</Text>
+                      <Text className="text-lg font-bold text-gray-900">${(subtotal + (0.20 * subtotal) + (0.08875 * subtotal)).toFixed(2)}</Text>
+                    </View>
+                  </View>
+          </View>
+              </View>
+            </View>
+          )}
+
+          {/* Call to Action */}
+          {cartItems.length > 0 && (
+            <View className="px-4 mt-6 mb-8">
+              <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <View className="items-center">
+                  <Icon.ShoppingBag className="w-12 h-12 text-purple-600 mb-3" />
+                  <Text className="text-lg font-semibold text-gray-800 mb-2">
+                    Ready to order more?
+                  </Text>
+                  <Text className="text-gray-600 text-center mb-4">
+                    Continue browsing to add more delicious items to your cart
+            </Text>
+              <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={{ 
+                      backgroundColor: themeColors.purple,
+                      borderRadius: 16,
+                      paddingVertical: 16,
+                      paddingHorizontal: 24,
+                      shadowColor: themeColors.purple,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: 6,
+                    }}
+                    className="w-full mb-4"
+                  >
+                    <View className="flex-row items-center justify-center">
+                      <Icon.ArrowLeft className="w-5 h-5 text-white mr-3" />
+                      <Text className="text-white font-semibold text-lg">
+                        Add More Items
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                  
+                  <Text className="text-lg font-semibold text-gray-800 text-center mb-4">
+                    Done Ordering?
+                  </Text>
+                  
+                  <TouchableOpacity
+                    onPress={() => navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'MainTabs', params: { screen: 'Cart' } }],
+                    })}
+                    style={{ 
+                      backgroundColor: themeColors.purple,
+                      borderRadius: 16,
+                      paddingVertical: 16,
+                      paddingHorizontal: 24,
+                      shadowColor: themeColors.purple,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: 6,
+                    }}
+                    className="w-full"
+                  >
+                    <View className="flex-row items-center justify-center">
+                      <Text className="text-white font-bold text-lg">
+                        Checkout
+                  </Text>
+                </View>
+              </TouchableOpacity>
+                </View>
+            </View>
         </View>
       )}
         </ScrollView>
       </View>
-      
-      {/* Time Slot Modal */}
-      <TimeSlotModal
-        visible={showTimeSlotModal}
-        onClose={() => setShowTimeSlotModal(false)}
-        onTimeSelected={handleTimeSlotSelected}
-        restaurantId={restaurant?.id}
-      />
-
-      {/* Location Modal */}
-      <LocationModal
-        visible={showLocationModal}
-        onClose={() => setShowLocationModal(false)}
-        onLocationSelected={handleLocationSelected}
-        restaurantId={restaurant?.id}
-      />
     </SafeAreaView>
   );
 }

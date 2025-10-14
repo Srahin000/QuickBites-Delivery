@@ -6,16 +6,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Get Stripe secret key from Supabase environment variables
 const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
-console.log('Stripe secret key from Supabase:', stripeSecretKey ? stripeSecretKey.substring(0, 10) + '...' : 'NOT SET');
-console.log('Is test key:', stripeSecretKey?.startsWith('sk_test_'));
-console.log('Is live key:', stripeSecretKey?.startsWith('sk_live_'));
 
 if (!stripeSecretKey) {
   throw new Error('STRIPE_SECRET_KEY environment variable is not set in Supabase');
 }
 
 const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2022-11-15',
+  apiVersion: '2024-06-20',
   typescript: true,
 });
 
@@ -74,49 +71,65 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { cartItems, total, orderCode, restaurant } = body;
+    const { cartItems, total, orderCode, restaurant, metadata, amount, currency } = body;
 
     console.log('Creating payment intent for:', {
       userId: user.id,
       userEmail: user.email,
-      total,
+      amountProvided: amount,
+      totalProvided: total,
       orderCode,
       restaurant: restaurant?.name,
-      stripeKey: stripeSecretKey.substring(0, 10) + '...',
-      isTestKey: stripeSecretKey.startsWith('sk_test_')
+      cartItemsCount: cartItems?.length || 0,
+      hasRestaurant: !!restaurant
     });
 
-    // Validate required fields
-    if (!total || total <= 0) {
-      throw new Error('Invalid total amount');
+    // Validate required fields - amount must be integer cents
+    const finalAmount =
+      typeof amount === 'number' ? amount :
+      (typeof total === 'number' ? Math.round(total * 100) : null);
+
+    if (!Number.isInteger(finalAmount) || (finalAmount as number) <= 0) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid amount (must be integer cents)' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
-    if (!orderCode) {
-      throw new Error('Order code is required');
-    }
-
-    // Create a PaymentIntent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(total * 100), // Stripe wants amount in cents
-      currency: 'usd',
+    // Create a PaymentIntent with Apple Pay support
+    const paymentIntentConfig: any = {
+      amount: finalAmount as number,
+      currency: currency || 'usd',
       metadata: {
-        order_code: orderCode.toString(),
+        order_code: orderCode?.toString() || 'unknown',
         restaurant_name: restaurant?.name || 'Unknown',
         user_id: user.id,
         user_email: user.email || 'unknown',
-        app_version: '1.0.2'
+        app_version: '1.0.2',
+        // Only include metadata fields that are under 500 characters
+        ...(metadata && Object.keys(metadata).reduce((acc, key) => {
+          const value = metadata[key];
+          if (value && value.toString().length <= 500) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {}))
       },
-      automatic_payment_methods: { 
-        enabled: true,
-        allow_redirects: 'never' // Prevents redirect-based payment methods
-      },
-    });
+    };
+
+    // Use automatic payment methods (includes Apple Pay via card)
+    paymentIntentConfig.automatic_payment_methods = { 
+      enabled: true,
+      allow_redirects: 'never' // Prevents redirect-based payment methods
+    };
+
+    const paymentIntent = await stripe.paymentIntents.create(paymentIntentConfig);
 
     console.log('Payment intent created:', paymentIntent.id);
 
     return new Response(
       JSON.stringify({
-        paymentIntentClientSecret: paymentIntent.client_secret,
+        client_secret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
       }),
       {

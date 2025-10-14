@@ -18,7 +18,7 @@ import { themeColors } from '../theme';
 import { useChat } from '../context/ChatContext';
 
 export default function ChatScreen() {
-  const [chatType, setChatType] = useState('ai'); // 'ai' or 'deliverer'
+  const [chatType, setChatType] = useState('deliverer'); // Set to deliverer by default, AI hidden for now
   const [message, setMessage] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const { 
@@ -41,13 +41,11 @@ export default function ChatScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      if (chatType === 'deliverer') {
-        await loadActiveChatRoom();
-        if (activeChatRoom) {
-          await loadMessages(activeChatRoom.id);
-        }
+      // Refresh active chat room and messages
+      await loadActiveChatRoom();
+      if (activeChatRoom) {
+        await loadMessages(activeChatRoom.id);
       }
-      // For AI chat, we don't need to refresh anything yet
     } catch (error) {
       console.error('Error refreshing chat:', error);
     } finally {
@@ -78,75 +76,41 @@ export default function ChatScreen() {
       {/* Header */}
       <View className="px-4 py-3 border-b border-gray-200">
         <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center">
+          <View className="flex-row items-center flex-1">
             <View className="mr-3">
-              {chatType === 'ai' ? (
-                <View style={[styles.switchButton, { backgroundColor: '#8B5CF6' }]}>
-                  <Icon.MessageCircle size={12} color="white" />
-                </View>
-              ) : (
-                <View style={[styles.switchButton, { backgroundColor: '#3B82F6' }]}>
-                  <Icon.User size={12} color="white" />
-                </View>
-              )}
+              <View style={[styles.switchButton, { backgroundColor: '#3B82F6' }]}>
+                <Icon.User size={12} color="white" />
+              </View>
             </View>
-            <View>
+            <View className="flex-1">
               <Text className="text-lg font-semibold text-gray-800">
-                {chatType === 'ai' ? 'AI Assistant' : getDelivererName()}
+                {getDelivererName()}
               </Text>
               <Text className="text-sm text-gray-500">
-                {chatType === 'ai' ? 'Get restaurant recommendations' : 'Chat with your delivery person'}
+                Chat with your delivery person
               </Text>
             </View>
           </View>
           
-          {/* Small Switch Button */}
-          <TouchableOpacity
-            onPress={() => setChatType(chatType === 'ai' ? 'deliverer' : 'ai')}
-            style={[
-              styles.switchButton,
-              { backgroundColor: chatType === 'ai' ? '#3B82F6' : '#8B5CF6' }
-            ]}
-            activeOpacity={0.8}
-          >
-            {chatType === 'ai' ? (
-              <Icon.User size={12} color="white" />
-            ) : (
-              <Icon.MessageCircle size={12} color="white" />
-            )}
-          </TouchableOpacity>
+          <View className="flex-row items-center">
+            {/* Refresh Button */}
+            <TouchableOpacity
+              onPress={onRefresh}
+              disabled={refreshing}
+              style={styles.refreshButton}
+            >
+              <Icon.RefreshCcw 
+                size={20} 
+                color={refreshing ? '#9CA3AF' : '#6B7280'} 
+                style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
-      {/* Content */}
-      {chatType === 'ai' ? (
-        // AI Chat Content
-        <ScrollView 
-          className="flex-1"
-          contentContainerStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={themeColors.bgColor2}
-              colors={[themeColors.bgColor2]}
-            />
-          }
-        >
-          <View className="w-24 h-24 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 items-center justify-center mb-6">
-            <Icon.Book size={32} color="white" />
-          </View>
-          <Text className="text-2xl font-bold text-gray-800 mb-2">AI Assistant</Text>
-          <Text className="text-gray-500 text-center text-lg mb-4">
-            Coming Soon!
-          </Text>
-          <Text className="text-gray-400 text-center text-sm">
-            Our AI assistant will help you find the perfect restaurant{'\n'}
-            based on your mood and preferences.
-          </Text>
-        </ScrollView>
-      ) : (
-        // Deliverer Chat UI
+      {/* Content - Deliverer Chat Only */}
+      {/* Deliverer Chat UI */}
         <KeyboardAvoidingView 
           style={styles.chatContainer}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -246,7 +210,6 @@ export default function ChatScreen() {
             </>
           )}
         </KeyboardAvoidingView>
-      )}
     </SafeAreaView>
   );
 }
@@ -258,6 +221,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
   // Chat UI Styles
   chatContainer: {

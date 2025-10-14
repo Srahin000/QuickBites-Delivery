@@ -49,6 +49,11 @@ export default function OrderDetails() {
           .single();
 
         setStatus(statusData?.status || 'processing');
+        
+        // Debug: Log order data to see what's missing
+        console.log('Order data:', orderData);
+        console.log('Restaurant name:', orderData.restaurant_name);
+        
         setOrder({
           ...orderData,
           delivered_at: statusData?.delivered_at
@@ -104,7 +109,10 @@ export default function OrderDetails() {
           if (navigation.canGoBack()) {
             navigation.goBack();
           } else {
-            navigation.navigate('MainTabs', { screen: 'Orders' });
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainTabs', params: { screen: 'Orders' } }],
+            });
           }
         }}
       >
@@ -127,15 +135,15 @@ export default function OrderDetails() {
         <ScrollView showsVerticalScrollIndicator={false}>
       <Text className="text-xl font-bold mb-2">Order #{order.order_code}</Text>
       <Text className="text-sm text-gray-500 mb-4">Status: {status}</Text>
-      <Text className="text-lg font-semibold mb-2">Restaurant: {order.restaurant_name}</Text>
+      <Text className="text-lg font-semibold mb-2">Restaurant: {order.restaurant_name || 'Restaurant not specified'}</Text>
       <Text className="text-base font-semibold mb-2">Items:</Text>
           {order.items && order.items.map((item, index) => (
         <View key={index} className="mb-3 border-b pb-2">
           <Text className="font-semibold">{item.name} x{item.quantity}</Text>
-          <Text className="text-sm text-gray-600">${item.price} each</Text>
+          <Text className="text-sm text-gray-600">${parseFloat(item.price).toFixed(2)} each</Text>
         </View>
       ))}
-      <Text className="text-lg font-bold mt-4">Total: ${order.total}</Text>
+      <Text className="text-lg font-bold mt-4">Total: ${parseFloat(order.total).toFixed(2)}</Text>
           <Text className="text-sm text-gray-500 mt-2">
             Ordered on {new Date(order.created_at).toLocaleString()}
           </Text>

@@ -20,26 +20,86 @@ import LoadingSpinner from './LoadingSpinner';
 
 export default function RestaurantList({ category, searchQuery, hasActiveOrder }) {
   const [restaurants, setRestaurants] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start with false to prevent stuck loader
+  const [hasLoaded, setHasLoaded] = useState(false); // Track if we've ever loaded successfully
+
+  // Component-level timeout to prevent any stuck loading states
+  useEffect(() => {
+    const componentTimeout = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        setHasLoaded(true);
+      }
+    }, 3000); // 3 second component timeout
+
+    return () => clearTimeout(componentTimeout);
+  }, [loading]);
 
   useEffect(() => {
     const fetchRestaurants = async () => {
       setLoading(true);
-      let query = supabase.from('restaurants').select('*, dishes(*)');
-      if (category) query = query.eq('category', category);
       
-      const { data, error } = await query;
-      if (!error) setRestaurants(data);
-      setLoading(false);
+      try {
+        // First, get restaurant_ids from beta_restaurant table
+        const { data: betaRestaurants, error: betaError } = await supabase
+          .from('beta_restaurant')
+          .select('restaurant_id');
+        
+        if (betaError) {
+          console.error('Error fetching beta restaurants:', betaError);
+          setRestaurants([]);
+          setLoading(false);
+          return;
+        }
+        
+        
+        if (!betaRestaurants || betaRestaurants.length === 0) {
+          setRestaurants([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Extract restaurant IDs
+        const restaurantIds = betaRestaurants.map(br => br.restaurant_id);
+        
+        // Then fetch restaurants from restaurant_master using those IDs
+        const { data: restaurants, error: restaurantError } = await supabase
+          .from('restaurant_master')
+          .select('*, menu_items(*)')
+          .in('restaurant_id', restaurantIds);
+        
+        if (restaurantError) {
+          console.error('Error fetching restaurants:', restaurantError);
+          setRestaurants([]);
+        } else {
+          setRestaurants(restaurants || []);
+        }
+      } catch (error) {
+        console.error('Unexpected error:', error);
+        setRestaurants([]);
+      } finally {
+        setLoading(false);
+        setHasLoaded(true);
+      }
     };
+    
     fetchRestaurants();
+    
+    // Add a timeout fallback to ensure loading never gets stuck
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+    }, 5000); // 5 second timeout (reduced from 10)
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [category]);
 
   const filteredRestaurants = restaurants.filter(restaurant =>
-    restaurant.name.toLowerCase().includes(searchQuery.toLowerCase())
+    restaurant?.restaurant_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (loading) {
+  if (loading && !hasLoaded) {
     return (
       <View className="py-8">
         <LoadingSpinner type="dots" message="Loading restaurants..." size="medium" />
@@ -114,7 +174,7 @@ export default function RestaurantList({ category, searchQuery, hasActiveOrder }
       ) : (
         <FlatList
           data={filteredRestaurants}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item?.restaurant_id?.toString() || Math.random().toString()}
           renderItem={renderRestaurantCard}
           contentContainerStyle={{
             paddingHorizontal: 16,

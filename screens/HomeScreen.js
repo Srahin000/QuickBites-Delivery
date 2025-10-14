@@ -12,7 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar, ScrollView } from 'react-native';
 import * as Icon from 'react-native-feather';
 import { themeColors } from '../theme';
-import Categories from '../components/categories';
 import RestaurantList from '../components/RestaurantList';
 import DealsCarousel from '../components/DealsCarousel';
 import { useNavigation } from '@react-navigation/core';
@@ -41,7 +40,6 @@ const { width, height } = Dimensions.get('window');
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { session } = useSession();
-  const [activeCategory, setActiveCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,12 +55,8 @@ export default function HomeScreen() {
     // Animate search bar on mount
     searchBarScale.value = withSpring(1, { damping: 15, stiffness: 100 });
 
-    // Simulate loading time
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
-
-    return () => clearTimeout(timer);
+    // Set loading to false immediately - let RestaurantList handle its own loading
+    setIsLoading(false);
   }, []);
 
   // Check for active orders
@@ -115,22 +109,8 @@ export default function HomeScreen() {
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       if (session?.user) {
-        setRefreshing(true);
-        setTimeout(() => setRefreshing(false), 1000);
-      }
-    });
-
-    return unsubscribe;
-  }, [navigation, session]);
-
-  // Listen for refresh parameter from tab press
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('state', (e) => {
-      const state = e.data.state;
-      if (state && state.routes) {
-        const currentRoute = state.routes[state.index];
-        if (currentRoute.name === 'Home' && currentRoute.params?.refresh) {
-          // Tab was pressed, trigger refresh
+        // Only refresh if we don't already have an active order check in progress
+        if (!refreshing) {
           setRefreshing(true);
           setTimeout(() => setRefreshing(false), 1000);
         }
@@ -138,7 +118,10 @@ export default function HomeScreen() {
     });
 
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, session, refreshing]);
+
+  // Listen for refresh parameter from tab press - REMOVED to prevent conflicts
+  // The focus listener above handles tab navigation properly
 
   const handleGameButtonPress = () => {
     navigation.navigate('GameScreen');
@@ -155,12 +138,15 @@ export default function HomeScreen() {
   }));
 
   const onRefresh = React.useCallback(() => {
+    console.log('HomeScreen: Starting refresh');
     setRefreshing(true);
-    setIsLoading(true);
+    
+    // Don't set isLoading to true - let RestaurantList handle its own loading
+    // Just refresh the active orders check
     setTimeout(() => {
-      setIsLoading(false);
+      console.log('HomeScreen: Refresh completed');
       setRefreshing(false);
-    }, 1500); // Simulate reload
+    }, 1000);
   }, []);
 
   if (isLoading) {
@@ -279,15 +265,10 @@ export default function HomeScreen() {
             <DealsCarousel />
             </Animated.View>
 
-            {/* 🧭 Categories */}
-            <Animated.View entering={FadeInUp.delay(400).springify()}>
-            <Categories activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
-            </Animated.View>
-
             {/* 🍽 Restaurants */}
-            <Animated.View entering={FadeInUp.delay(500).springify()}>
+            <Animated.View entering={FadeInUp.delay(400).springify()}>
             <RestaurantList 
-              category={activeCategory} 
+              category={null} 
               searchQuery={searchQuery} 
               hasActiveOrder={hasActiveOrder}
             />

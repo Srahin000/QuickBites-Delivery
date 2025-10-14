@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { supabase } from '../supabaseClient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { themeColors } from '../theme';
 
 const LocationModal = ({ visible, onClose, onLocationSelected, restaurantId }) => {
   const [locations, setLocations] = useState([]);
@@ -78,7 +79,7 @@ const LocationModal = ({ visible, onClose, onLocationSelected, restaurantId }) =
               {item.location}
             </Text>
             {isSelected && (
-              <View style={styles.statusBadge} backgroundColor="#8B5CF6">
+              <View style={[styles.statusBadge, { backgroundColor: themeColors.purple }]}>
                 <Text style={styles.statusText}>Selected</Text>
               </View>
             )}
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   selectedTimeSlot: {
-    borderColor: '#8B5CF6',
+    borderColor: themeColors.purple,
     backgroundColor: '#F3F4F6',
   },
   timeSlotContent: {
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   selectedTimeText: {
-    color: '#8B5CF6',
+    color: themeColors.purple,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -306,24 +307,26 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   selectedCounterText: {
-    color: '#8B5CF6',
+    color: themeColors.purple,
   },
   selectedIndicator: {
     position: 'absolute',
     top: 0,
     right: 0,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: themeColors.purple,
     padding: 8,
     borderBottomLeftRadius: 8,
   },
   footer: {
-    padding: 20,
+    paddingTop: 4,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
   confirmButton: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: themeColors.purple,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',

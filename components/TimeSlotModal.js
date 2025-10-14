@@ -19,15 +19,15 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
   const [loading, setLoading] = useState(false);
   const [selectedTime, setSelectedTime] = useState(null);
 
-  // Hardcoded to Monday for testing
-  const currentDay = 'Monday';
-  
   // Get today's actual day
   const today = new Date();
   const todayDay = today.toLocaleDateString('en-US', { weekday: 'long' });
   
-  // For testing purposes, always show time slots (hardcoded to Monday)
-  const isDeliveryDay = true; // Always true for testing
+  // Use the actual current day instead of hardcoded Monday
+  const currentDay = todayDay;
+  
+  // Check if today is a delivery day (weekdays)
+  const isDeliveryDay = today.getDay() >= 1 && today.getDay() <= 5;
 
   useEffect(() => {
     if (visible) {
@@ -38,7 +38,7 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
   const fetchTimeSlots = async () => {
     setLoading(true);
     try {
-      // Always fetch time slots for testing (hardcoded to Monday)
+      // Fetch time slots for the current day
       const { data, error } = await supabase
         .from('delivery_times')
         .select('*')
@@ -51,10 +51,8 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
         return;
       }
 
-      // Filter out past time slots
-      // Hardcoded to Monday 10:00 AM for testing
+      // Filter out past time slots for today
       const currentTime = new Date();
-      currentTime.setHours(10, 0, 0, 0); // Set to 10:00 AM
       const currentHour = currentTime.getHours();
       const currentMinute = currentTime.getMinutes();
       

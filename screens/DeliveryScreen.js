@@ -145,19 +145,23 @@ export default function DeliveryScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
+      <ScrollView 
+        className="flex-1" 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      >
         {/* Header */}
         <Animated.View 
           style={{ 
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }]
           }}
-          className="px-6 pt-4 pb-6"
+          className="px-6 pt-8 pb-4"
         >
           <View className="items-center">
-            <View className="w-20 h-20 rounded-full bg-green-100 items-center justify-center mb-4">
-              <Icon.CheckCircle size={40} color="#10B981" />
+            <View className="w-16 h-16 rounded-full bg-green-100 items-center justify-center mb-3">
+              <Icon.CheckCircle size={32} color="#10B981" />
             </View>
             <Text className="text-2xl font-bold text-gray-800 text-center mb-2">
               Order Submitted Successfully!
@@ -174,9 +178,9 @@ export default function DeliveryScreen() {
             opacity: fadeAnim,
             transform: [{ scale: scaleAnim }]
           }}
-          className="mx-6 mb-6"
+          className="mx-6 mb-4"
         >
-          <View className="bg-gray-50 rounded-2xl p-4">
+          <View className="bg-gray-50 rounded-2xl p-3">
             <View className="flex-row items-center justify-between mb-3">
               <Text className="text-lg font-semibold text-gray-800">Order Status</Text>
               <View 
@@ -209,12 +213,12 @@ export default function DeliveryScreen() {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }]
           }}
-          className="mx-6 mb-6"
+          className="mx-6 mb-4"
         >
-          <View className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-            <Text className="text-xl font-bold text-gray-800 mb-4">Pickup Information</Text>
+          <View className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+            <Text className="text-xl font-bold text-gray-800 mb-3">Pickup Information</Text>
             
-            <View className="mb-4">
+            <View className="mb-3">
               <View className="flex-row items-center mb-2">
                 <Icon.MapPin size={20} color="#6B7280" />
                 <Text className="text-gray-600 ml-2 font-medium">Pickup Location</Text>
@@ -229,7 +233,7 @@ export default function DeliveryScreen() {
               )}
             </View>
 
-            <View className="mb-4">
+            <View className="mb-3">
               <View className="flex-row items-center mb-2">
                 <Icon.Clock size={20} color="#6B7280" />
                 <Text className="text-gray-600 ml-2 font-medium">Ready By</Text>
@@ -239,7 +243,7 @@ export default function DeliveryScreen() {
               </Text>
             </View>
 
-            <View className="mb-4">
+            <View className="mb-3">
               <View className="flex-row items-center mb-2">
                 <Icon.Hash size={20} color="#6B7280" />
                 <Text className="text-gray-600 ml-2 font-medium">Pickup Code</Text>
@@ -265,13 +269,13 @@ export default function DeliveryScreen() {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }]
           }}
-          className="mx-6 mb-6"
+          className="mx-6 mb-4"
         >
-          <View className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-            <Text className="text-xl font-bold text-gray-800 mb-4">Order Summary</Text>
+          <View className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+            <Text className="text-xl font-bold text-gray-800 mb-3">Order Summary</Text>
             
             {/* Restaurant Info */}
-            <View className="flex-row items-center mb-4 pb-4 border-b border-gray-100">
+            <View className="flex-row items-center mb-3 pb-3 border-b border-gray-100">
               <Image 
                 source={{ uri: restaurant.image_url }} 
                 className="w-12 h-12 rounded-full"
@@ -287,7 +291,7 @@ export default function DeliveryScreen() {
             </View>
 
             {/* Order Items */}
-            <View className="mb-4">
+            <View className="mb-3">
               {cartItems.map((item, index) => (
                 <View key={index} className="flex-row items-center justify-between mb-2">
                   <View className="flex-row items-center flex-1">
@@ -295,7 +299,7 @@ export default function DeliveryScreen() {
                     <Text className="text-gray-800 flex-1">{item.name}</Text>
                   </View>
                   <Text className="text-gray-800 font-semibold">
-                    ${(item.price * item.quantity).toFixed(2)}
+                    ${(parseFloat(item.price) * item.quantity).toFixed(2)}
                   </Text>
                 </View>
               ))}
@@ -329,15 +333,12 @@ export default function DeliveryScreen() {
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }]
           }}
-          className="px-6 pb-6"
+          className="px-6 pb-4"
         >
           <View className="space-y-3">
             <TouchableOpacity
               onPress={() => {
-                navigation.goBack(); // Dismiss the modal first
-                setTimeout(() => {
-                  navigation.navigate('MainTabs', { screen: 'Orders' });
-                }, 100);
+                navigation.navigate('MainTabs', { screen: 'Orders' });
               }}
               className="bg-primary rounded-2xl p-4 shadow-sm"
             >
@@ -348,10 +349,10 @@ export default function DeliveryScreen() {
             
             <TouchableOpacity
               onPress={() => {
-                navigation.goBack(); // Dismiss the modal first
-                setTimeout(() => {
-                  navigation.navigate('MainTabs', { screen: 'Home' });
-                }, 100);
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
+                });
               }}
               className="bg-gray-100 rounded-2xl p-4"
             >

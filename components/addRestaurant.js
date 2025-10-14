@@ -104,7 +104,7 @@ export default function AddRestaurant({ onAddRestaurant }) {
       }
 
       const newRestaurant = {
-        name: restaurantName,
+        restaurant_name: restaurantName,
         address: restaurantAddress,
         category: selectedCategory.label,
         description: restaurantDescription,
@@ -113,14 +113,29 @@ export default function AddRestaurant({ onAddRestaurant }) {
         ratings: 0,
       };
 
-      const { error: insertError } = await supabase
-        .from('restaurants')
-        .insert([newRestaurant]);
+      // Insert into restaurant_master first
+      const { data: insertedRestaurant, error: insertError } = await supabase
+        .from('restaurant_master')
+        .insert([newRestaurant])
+        .select()
+        .single();
 
       if (insertError) {
         console.error("Error inserting restaurant:", insertError);
-      } else if (onAddRestaurant) {
-        onAddRestaurant(newRestaurant);
+        return;
+      }
+
+      // Then add to beta_restaurant table
+      const { error: betaError } = await supabase
+        .from('beta_restaurant')
+        .insert([{ restaurant_id: insertedRestaurant.restaurant_id }]);
+
+      if (betaError) {
+        console.error("Error adding to beta restaurants:", betaError);
+      }
+
+      if (onAddRestaurant) {
+        onAddRestaurant(insertedRestaurant);
       }
 
       // Reset form
