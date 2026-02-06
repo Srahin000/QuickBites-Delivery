@@ -106,6 +106,8 @@ export function CartProvider({ children }) {
   const clearCart = () => {
     setCartItems([]);
     setRestaurant(null);
+    // Note: Coupons are managed in TabCartScreen via appliedCoupons state
+    // They are fetched fresh from database on mount, so no need to clear here
   };
 
   return (

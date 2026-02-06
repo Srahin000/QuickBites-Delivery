@@ -12,11 +12,13 @@ import {
   Keyboard,
   Platform,
   Dimensions,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import supabase from "../supabaseClient"
 import { useNavigation } from "@react-navigation/native";
 import { useSession } from "../context/SessionContext-v2";
+import { useCart } from "../context/CartContext";
 import Animated, { 
   FadeIn, 
   FadeInDown, 
@@ -38,9 +40,11 @@ const { width, height } = Dimensions.get('window');
 export default function ProfileScreen() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const navigator = useNavigation();
   const { session, signOut } = useSession();
+  const { clearCart } = useCart();
   const [showSuggestForm, setShowSuggestForm] = useState(false);
   const [restaurantName, setRestaurantName] = useState('');
   const [restaurantAddress, setRestaurantAddress] = useState('');
@@ -88,6 +92,8 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     try {
+      // Clear cart before signing out
+      clearCart();
       await signOut();
       Alert.alert("Signed Out", "You have been signed out successfully.");
     } catch (error) {
@@ -267,6 +273,25 @@ export default function ProfileScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 0, backgroundColor: 'white', flexGrow: 1 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              if (session?.user) {
+                const { data, error } = await supabase
+                  .from("users")
+                  .select("*")
+                  .eq("id", session.user.id)
+                  .single();
+                if (!error && data) {
+                  setProfile(data);
+                }
+              }
+              setRefreshing(false);
+            }}
+          />
+        }
       >
 
         {/* Profile Details */}

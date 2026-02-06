@@ -13,11 +13,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
 import * as Icon from 'react-native-feather';
 import { themeColors } from '../../theme';
 import { useChat } from '../../context/ChatContext';
 
 export default function DelivererChat() {
+  const navigation = useNavigation();
   const [message, setMessage] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -103,17 +105,6 @@ export default function DelivererChat() {
             </View>
           </View>
           <View className="flex-row items-center">
-            <TouchableOpacity
-              onPress={onRefresh}
-              disabled={refreshing}
-              style={styles.refreshButton}
-            >
-              <Icon.RefreshCcw 
-                size={20} 
-                color={refreshing ? '#9CA3AF' : '#6B7280'} 
-                style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
-              />
-            </TouchableOpacity>
             {selectedOrder && (
               <TouchableOpacity
                 onPress={() => setSelectedOrder(null)}
@@ -305,15 +296,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '600',
-  },
-  refreshButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
   },
   backButton: {
     padding: 8,

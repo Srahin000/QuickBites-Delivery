@@ -13,11 +13,13 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
 import * as Icon from 'react-native-feather';
 import { themeColors } from '../theme';
 import { useChat } from '../context/ChatContext';
 
 export default function ChatScreen() {
+  const navigation = useNavigation();
   const [chatType, setChatType] = useState('deliverer'); // Set to deliverer by default, AI hidden for now
   const [message, setMessage] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -43,8 +45,9 @@ export default function ChatScreen() {
     try {
       // Refresh active chat room and messages
       await loadActiveChatRoom();
-      if (activeChatRoom) {
-        await loadMessages(activeChatRoom.id);
+      const currentActiveChatRoom = activeChatRoom;
+      if (currentActiveChatRoom) {
+        await loadMessages(currentActiveChatRoom.id);
       }
     } catch (error) {
       console.error('Error refreshing chat:', error);
@@ -52,6 +55,15 @@ export default function ChatScreen() {
       setRefreshing(false);
     }
   };
+
+  // Refresh when screen comes into focus (tab press)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      onRefresh();
+    });
+
+    return unsubscribe;
+  }, [navigation, activeChatRoom]);
 
   // Format timestamp for display
   const formatTimestamp = (timestamp) => {
@@ -83,28 +95,26 @@ export default function ChatScreen() {
               </View>
             </View>
             <View className="flex-1">
-              <Text className="text-lg font-semibold text-gray-800">
-                {getDelivererName()}
-              </Text>
-              <Text className="text-sm text-gray-500">
-                Chat with your delivery person
-              </Text>
+              {activeChatRoom && activeChatRoom.order_status !== 'delivered' ? (
+                <>
+                  <Text className="text-lg font-semibold text-gray-800">
+                    {getDelivererName()}
+                  </Text>
+                  <Text className="text-sm text-gray-500">
+                    Chat with your delivery person
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text className="text-lg font-semibold text-gray-800">
+                    Chat
+                  </Text>
+                  <Text className="text-sm text-gray-500">
+                    Order chat history
+                  </Text>
+                </>
+              )}
             </View>
-          </View>
-          
-          <View className="flex-row items-center">
-            {/* Refresh Button */}
-            <TouchableOpacity
-              onPress={onRefresh}
-              disabled={refreshing}
-              style={styles.refreshButton}
-            >
-              <Icon.RefreshCcw 
-                size={20} 
-                color={refreshing ? '#9CA3AF' : '#6B7280'} 
-                style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
-              />
-            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -133,7 +143,7 @@ export default function ChatScreen() {
             </View>
           ) : activeChatRoom.order_status === 'delivered' ? (
             <View style={styles.deliveredContainer}>
-              <Icon.CheckCircle size={48} color="#10B981" />
+              <Icon.CheckCircle size={48} color={themeColors.purple} />
               <Text style={styles.deliveredTitle}>Order Delivered!</Text>
               <Text style={styles.deliveredMessage}>
                 Your order has been delivered. This chat is closed.
@@ -149,6 +159,7 @@ export default function ChatScreen() {
                 style={styles.messagesContainer}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.messagesContent}
+                keyboardShouldPersistTaps="handled"
                 refreshControl={
                   <RefreshControl
                     refreshing={refreshing}
@@ -222,15 +233,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  refreshButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
   // Chat UI Styles
   chatContainer: {
     flex: 1,
@@ -242,6 +244,7 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     paddingVertical: 16,
+    flexGrow: 1,
   },
   messageBubble: {
     maxWidth: '80%',
@@ -369,7 +372,7 @@ const styles = StyleSheet.create({
   deliveredTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#10B981',
+    color: themeColors.purple,
     marginTop: 16,
     marginBottom: 12,
   },

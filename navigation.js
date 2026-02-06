@@ -5,6 +5,8 @@ import * as Linking from 'expo-linking';
 import { ActivityIndicator, View } from 'react-native';
 import { useSession } from './context/SessionContext-v2';
 import { supabase } from './supabaseClient';
+import { navigationRef } from './utils/navigationRef';
+import { themeColors } from './theme';
 
 // Screens
 import FooterPanel from './components/footerPanel';
@@ -18,6 +20,10 @@ import EditRestaurantsScreen from './screens/AdminScreens/EditRestaurantsScreen'
 import ManageEmployees from './screens/AdminScreens/ManageEmployees';
 import ViewOrders from './screens/AdminScreens/ViewOrders';
 import ManageCustomers from './screens/AdminScreens/ManageCustomers';
+import FinancialPulseScreen from './screens/AdminScreens/FinancialPulseScreen';
+import ManageClubs from './screens/AdminScreens/ManageClubs';
+import AnnouncementsScreen from './screens/AdminScreens/AnnouncementsScreen';
+import RiderSchedulerScreen from './screens/AdminScreens/RiderSchedulerScreen';
 import OrderPreparingScreen from './screens/OrderPreparingScreen';
 import DeliveryScreen from './screens/DeliveryScreen';
 import RestaurantScreen from './screens/RestaurantScreen';
@@ -26,7 +32,6 @@ import OrderDetails from './screens/OrderDetails';
 import OrderHistoryScreen from './screens/OrderHistoryScreen';
 import OrderHistoryDetails from './screens/OrderHistoryDetails';
 import GameScreen from './screens/GameScreen';
-import KioskScreen from './screens/KioskScreen';
 import DelivererDashboard from './screens/DelivererScreens/DelivererDashboard';
 import DelivererChat from './screens/DelivererScreens/DelivererChat';
 import ProfileScreen from './screens/ProfileScreen';
@@ -82,7 +87,7 @@ export default function Navigation() {
             .from('users')
             .select('role')
             .eq('id', session.user.id)
-            .single();
+            .maybeSingle();
           
           if (error) {
             console.error('Error fetching role:', error);
@@ -108,13 +113,13 @@ export default function Navigation() {
   if (loading || (session && roleLoading)) {
     return (
       <View className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" color="#00cc88" />
+        <ActivityIndicator size="large" color={themeColors.purple} />
       </View>
     );
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!session ? (
           <>
@@ -133,6 +138,10 @@ export default function Navigation() {
             <Stack.Screen name="ViewOrders" component={ViewOrders} />
             <Stack.Screen name="ManageCustomers" component={ManageCustomers} />
             <Stack.Screen name="ManageEmployees" component={ManageEmployees} />
+            <Stack.Screen name="ManageClubs" component={ManageClubs} />
+            <Stack.Screen name="FinancialPulse" component={FinancialPulseScreen} />
+            <Stack.Screen name="Announcements" component={AnnouncementsScreen} />
+            <Stack.Screen name="RiderScheduler" component={RiderSchedulerScreen} />
             <Stack.Screen name="Restaurant" component={RestaurantScreen} />
             <Stack.Screen name="Cart" options={{ presentation: 'modal' }} component={CartScreen} />
             <Stack.Screen name="OrderDetails" options={{ presentation: 'modal' }} component={OrderDetails} />

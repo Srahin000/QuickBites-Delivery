@@ -33,8 +33,31 @@ const SignupScreen = () => {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [referralPromoEnabled, setReferralPromoEnabled] = useState(false);
   const role = 'customer';
+
+  // Check if referral promo is enabled
+  useEffect(() => {
+    const checkReferralPromoStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('service_approval')
+          .select('open')
+          .eq('id', 4)
+          .single();
+        
+        if (!error && data) {
+          setReferralPromoEnabled(data.open);
+        }
+      } catch (err) {
+        console.error('Error checking referral promo status:', err);
+      }
+    };
+    
+    checkReferralPromoStatus();
+  }, []);
 
   // ✅ Check for existing session on mount (handles email confirmation)
   useEffect(() => {
@@ -66,13 +89,35 @@ const SignupScreen = () => {
           last_name: lastName,
           role: role,
         }]);
+        
+        // Process referral code if it was provided during signup
+        const storedReferralCode = await AsyncStorage.getItem('signup_referral_code');
+        if (storedReferralCode && referralPromoEnabled) {
+          try {
+            const { data: result, error: refError } = await supabase
+              .rpc('process_referral_signup', {
+                p_referee_user_id: user.id,
+                p_referral_code: storedReferralCode.trim().toUpperCase()
+              });
+            
+            if (!refError && result?.success) {
+              console.log('Referral code processed successfully');
+              // Clear stored referral code
+              await AsyncStorage.removeItem('signup_referral_code');
+            } else {
+              console.error('Error processing referral code:', refError || result?.error);
+            }
+          } catch (refErr) {
+            console.error('Error processing referral code:', refErr);
+          }
+        }
       }
   
       // No manual navigation here, let navigation.js handle it
     };
   
     checkSessionAndInsertUser();
-  }, []);
+  }, [firstName, lastName, referralPromoEnabled]);
   
 
   // ✅ Also handle real-time SIGNED_IN events (Google or manual login)
@@ -112,6 +157,28 @@ const SignupScreen = () => {
 
             if (insertError) {
               console.error("Insert user error:", insertError);
+            } else {
+              // Process referral code if it was provided during signup
+              const storedReferralCode = await AsyncStorage.getItem('signup_referral_code');
+              if (storedReferralCode && referralPromoEnabled) {
+                try {
+                  const { data: result, error: refError } = await supabase
+                    .rpc('process_referral_signup', {
+                      p_referee_user_id: user.id,
+                      p_referral_code: storedReferralCode.trim().toUpperCase()
+                    });
+                  
+                  if (!refError && result?.success) {
+                    console.log('Referral code processed successfully');
+                    // Clear stored referral code
+                    await AsyncStorage.removeItem('signup_referral_code');
+                  } else {
+                    console.error('Error processing referral code:', refError || result?.error);
+                  }
+                } catch (refErr) {
+                  console.error('Error processing referral code:', refErr);
+                }
+              }
             }
           }
 
@@ -135,6 +202,11 @@ const SignupScreen = () => {
   
     setLoading(true);
     try {
+      // Store referral code if provided (for processing after email confirmation)
+      if (referralCode.trim() && referralPromoEnabled) {
+        await AsyncStorage.setItem('signup_referral_code', referralCode.trim().toUpperCase());
+      }
+      
       // ✅ Remove the unnecessary sign-in pre-check and directly try signing up
       const { user, session, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -153,10 +225,30 @@ const SignupScreen = () => {
       }
 
       // ✅ If signup is successful and we get a session immediately (no email confirmation needed)
-      if (session) {
+      if (session && user) {
         try {
           await AsyncStorage.setItem('supabase.auth.token', JSON.stringify(session));
           console.log('Signup session persisted to AsyncStorage');
+          
+          // Process referral code immediately if session is available
+          if (referralCode.trim() && referralPromoEnabled) {
+            try {
+              const { data: result, error: refError } = await supabase
+                .rpc('process_referral_signup', {
+                  p_referee_user_id: user.id,
+                  p_referral_code: referralCode.trim().toUpperCase()
+                });
+              
+              if (!refError && result?.success) {
+                console.log('Referral code processed successfully');
+                await AsyncStorage.removeItem('signup_referral_code');
+              } else {
+                console.error('Error processing referral code:', refError || result?.error);
+              }
+            } catch (refErr) {
+              console.error('Error processing referral code:', refErr);
+            }
+          }
         } catch (storageError) {
           console.error('Error persisting signup session:', storageError);
         }
@@ -259,8 +351,18 @@ const SignupScreen = () => {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-              className="border border-gray-300 rounded-lg p-3 mb-6 bg-gray-50"
+              className="border border-gray-300 rounded-lg p-3 mb-4 bg-gray-50"
           />
+          
+          {referralPromoEnabled && (
+            <TextInput
+              placeholder="Referral Code (Optional)"
+              value={referralCode}
+              onChangeText={setReferralCode}
+              autoCapitalize="characters"
+              className="border border-gray-300 rounded-lg p-3 mb-4 bg-gray-50"
+            />
+          )}
 
           <TouchableOpacity
             onPress={handleSignUp}

@@ -18,10 +18,37 @@ import Animated, {
 import * as Icon from "react-native-feather";
 import LoadingSpinner from './LoadingSpinner';
 
-export default function RestaurantList({ category, searchQuery, hasActiveOrder }) {
+export default function RestaurantList({ category, searchQuery, hasActiveOrder, refreshTrigger, onRefreshDone }) {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(false); // Start with false to prevent stuck loader
   const [hasLoaded, setHasLoaded] = useState(false); // Track if we've ever loaded successfully
+
+  const fetchRestaurants = async () => {
+    setLoading(true);
+    try {
+      const { data: restaurants, error: restaurantError } = await supabase
+        .from('restaurant_master')
+        .select('*, menu_items(*, load_unit)')
+        .eq('active', true);
+
+      if (restaurantError) {
+        console.error('Error fetching restaurants:', restaurantError);
+        setRestaurants([]);
+      } else {
+        const sanitized = (restaurants || []).map(r => ({
+          ...r,
+          menu_items: (r.menu_items || []).filter(mi => !mi.out_of_stock),
+        }));
+        setRestaurants(sanitized);
+      }
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      setRestaurants([]);
+    } finally {
+      setLoading(false);
+      setHasLoaded(true);
+    }
+  };
 
   // Component-level timeout to prevent any stuck loading states
   useEffect(() => {
@@ -35,65 +62,18 @@ export default function RestaurantList({ category, searchQuery, hasActiveOrder }
     return () => clearTimeout(componentTimeout);
   }, [loading]);
 
+  // Initial load and when category changes
   useEffect(() => {
-    const fetchRestaurants = async () => {
-      setLoading(true);
-      
-      try {
-        // First, get restaurant_ids from beta_restaurant table
-        const { data: betaRestaurants, error: betaError } = await supabase
-          .from('beta_restaurant')
-          .select('restaurant_id');
-        
-        if (betaError) {
-          console.error('Error fetching beta restaurants:', betaError);
-          setRestaurants([]);
-          setLoading(false);
-          return;
-        }
-        
-        
-        if (!betaRestaurants || betaRestaurants.length === 0) {
-          setRestaurants([]);
-          setLoading(false);
-          return;
-        }
-        
-        // Extract restaurant IDs
-        const restaurantIds = betaRestaurants.map(br => br.restaurant_id);
-        
-        // Then fetch restaurants from restaurant_master using those IDs
-        const { data: restaurants, error: restaurantError } = await supabase
-          .from('restaurant_master')
-          .select('*, menu_items(*)')
-          .in('restaurant_id', restaurantIds);
-        
-        if (restaurantError) {
-          console.error('Error fetching restaurants:', restaurantError);
-          setRestaurants([]);
-        } else {
-          setRestaurants(restaurants || []);
-        }
-      } catch (error) {
-        console.error('Unexpected error:', error);
-        setRestaurants([]);
-      } finally {
-        setLoading(false);
-        setHasLoaded(true);
-      }
-    };
-    
+    const timeoutId = setTimeout(() => setLoading(false), 5000);
     fetchRestaurants();
-    
-    // Add a timeout fallback to ensure loading never gets stuck
-    const timeoutId = setTimeout(() => {
-      setLoading(false);
-    }, 5000); // 5 second timeout (reduced from 10)
-    
-    return () => {
-      clearTimeout(timeoutId);
-    };
+    return () => clearTimeout(timeoutId);
   }, [category]);
+
+  // When parent triggers refresh (pull-to-refresh), refetch and notify when done
+  useEffect(() => {
+    if (!refreshTrigger) return;
+    fetchRestaurants().finally(() => onRefreshDone?.());
+  }, [refreshTrigger]);
 
   const filteredRestaurants = restaurants.filter(restaurant =>
     restaurant?.restaurant_name?.toLowerCase().includes(searchQuery.toLowerCase())

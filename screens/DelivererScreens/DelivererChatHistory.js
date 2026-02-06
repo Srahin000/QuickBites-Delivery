@@ -10,11 +10,13 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
 import * as Icon from 'react-native-feather';
 import { themeColors } from '../../theme';
 import { useChat } from '../../context/ChatContext';
 
 export default function DelivererChatHistory() {
+  const navigation = useNavigation();
   const [refreshing, setRefreshing] = useState(false);
   const { 
     chatHistory, 
@@ -68,18 +70,6 @@ export default function DelivererChatHistory() {
               <Text className="text-sm text-gray-500">Your completed deliveries</Text>
             </View>
           </View>
-          
-          {/* Refresh Button */}
-          <TouchableOpacity
-            onPress={onRefresh}
-            style={styles.refreshButton}
-            disabled={refreshing}
-          >
-            <Icon.RefreshCcw 
-              size={20} 
-              color={refreshing ? '#9CA3AF' : themeColors.bgColor2} 
-            />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -216,13 +206,5 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '600',
-  },
-  refreshButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

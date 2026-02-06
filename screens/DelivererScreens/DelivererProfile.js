@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -7,21 +7,27 @@ import {
   Alert, 
   ScrollView, 
   Image,
-  StyleSheet 
+  StyleSheet,
+  TextInput
 } from 'react-native';
 import { themeColors } from '../../theme';
 import { useSession } from '../../context/SessionContext-v2';
 import * as Icon from 'react-native-feather';
+import supabase from '../../supabaseClient';
 
 export default function DelivererProfile() {
   const { session, signOut } = useSession();
-  const [delivererInfo, setDelivererInfo] = useState({
-    name: 'Sadman Rahin',
-    email: 'saddyrahin2004@gmail.com',
-    employeeId: '1',
-    joiningDate: '2025-05-03',
-    avatar: 'https://lh3.googleusercontent.com/a/ACg8ocK5NM64fMSC9tyX5u3aK3Riy4EJzlDz23uXBztZ6_C42ZiMVw=s96-c'
-  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [userRow, setUserRow] = useState(null);
+  const [phone, setPhone] = useState('');
+  const [isOnline, setIsOnline] = useState(false);
+
+  const displayName = useMemo(() => {
+    if (!userRow) return 'Deliverer';
+    const n = `${userRow.first_name || ''} ${userRow.last_name || ''}`.trim();
+    return n || userRow.email || 'Deliverer';
+  }, [userRow]);
 
   const calculateDeliveringSince = (joiningDate) => {
     const joinDate = new Date(joiningDate);
@@ -66,6 +72,52 @@ export default function DelivererProfile() {
     );
   };
 
+  const loadProfile = async () => {
+    try {
+      if (!session?.user?.id) return;
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email, phone, is_online, verified, created_at')
+        .eq('id', session.user.id)
+        .single();
+      if (error) throw error;
+      setUserRow(data);
+      setPhone(data?.phone || '');
+      setIsOnline(!!data?.is_online);
+    } catch (err) {
+      console.error('DelivererProfile load error:', err);
+      Alert.alert('Error', err?.message || 'Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
+
+  const save = async () => {
+    if (!session?.user?.id) return;
+    setSaving(true);
+    try {
+      const patch = {
+        phone: phone.trim(),
+        is_online: !!isOnline,
+      };
+      const { error } = await supabase.from('users').update(patch).eq('id', session.user.id);
+      if (error) throw error;
+      setUserRow((u) => ({ ...(u || {}), ...patch }));
+      Alert.alert('Saved', 'Your profile was updated.');
+    } catch (err) {
+      console.error('DelivererProfile save error:', err);
+      Alert.alert('Error', err?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -78,25 +130,69 @@ export default function DelivererProfile() {
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <Image 
-              source={{ uri: delivererInfo.avatar }} 
+              source={{ uri: session?.user?.user_metadata?.avatar_url || userRow?.avatar_url || 'https://placehold.co/160x160' }} 
               style={styles.avatar}
             />
           </View>
           
-          <Text style={styles.name}>{delivererInfo.name}</Text>
-          <Text style={styles.email}>{delivererInfo.email}</Text>
+          <Text style={styles.name}>{loading ? 'Loading…' : displayName}</Text>
+          <Text style={styles.email}>{userRow?.email || session?.user?.email || ''}</Text>
           
           <View style={styles.infoRow}>
             <Icon.User className="w-5 h-5 text-gray-600" />
-            <Text style={styles.infoText}>Employee ID: {delivererInfo.employeeId}</Text>
+            <Text style={styles.infoText}>Verified: {userRow?.verified ? 'Yes' : 'No'}</Text>
           </View>
           
           <View style={styles.infoRow}>
             <Icon.Calendar className="w-5 h-5 text-gray-600" />
             <Text style={styles.infoText}>
-              Delivering since: {calculateDeliveringSince(delivererInfo.joiningDate)}
+              Delivering since: {calculateDeliveringSince(userRow?.created_at || new Date().toISOString())}
             </Text>
           </View>
+
+          <View style={{ width: '100%', marginTop: 14 }}>
+            <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Phone (deliverers only)</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}>
+              <Icon.Phone width={18} height={18} stroke="#6B7280" />
+              <TextInput
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="e.g. +1 212 555 0123"
+                placeholderTextColor="#9CA3AF"
+                style={{ flex: 1, marginLeft: 10, color: '#111827' }}
+                keyboardType="phone-pad"
+              />
+            </View>
+          </View>
+
+          <View style={{ width: '100%', marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>Online</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280' }}>Toggle availability for new orders</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setIsOnline((v) => !v)}
+              disabled={loading}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 999,
+                backgroundColor: isOnline ? '#10b981' : '#e5e7eb',
+              }}
+            >
+              <Text style={{ color: isOnline ? '#fff' : '#111827', fontWeight: '700' }}>
+                {isOnline ? 'Online' : 'Offline'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            onPress={save}
+            disabled={saving || loading}
+            style={{ marginTop: 14, backgroundColor: themeColors.bgColor2, paddingVertical: 12, paddingHorizontal: 18, borderRadius: 12, width: '100%', alignItems: 'center', opacity: saving || loading ? 0.6 : 1 }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Saving…' : 'Save'}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Stats Card */}

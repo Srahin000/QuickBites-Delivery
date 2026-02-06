@@ -5,6 +5,7 @@ import * as Icon from 'react-native-feather';
 import supabase from "../../supabaseClient"
 import { themeColors } from '../../theme';
 import { useSession } from '../../context/SessionContext-v2';
+import notificationService from '../../services/notificationService';
 
 const STATUS_OPTIONS = [
   'processing',
@@ -106,22 +107,6 @@ export default function DelivererMyDeliveries() {
     fetchOrders();
   }, [session?.user?.id]);
 
-  // Listen for refresh parameter from tab press
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('state', (e) => {
-      const state = e.data.state;
-      if (state && state.routes) {
-        const currentRoute = state.routes[state.index];
-        if (currentRoute.name === 'My Deliveries' && currentRoute.params?.refresh) {
-          // Tab was pressed, trigger refresh
-          onRefresh();
-        }
-      }
-    });
-
-    return unsubscribe;
-  }, [navigation]);
-
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchOrders(true);
@@ -130,6 +115,34 @@ export default function DelivererMyDeliveries() {
   const updateStatus = async (orderId, newStatus) => {
     setUpdating(prev => ({ ...prev, [orderId]: true }));
     try {
+      // Enforce workflow: can't mark as "delivered" without first marking as "ready to pickup"
+      if (newStatus === 'delivered') {
+        // Get current status
+        const { data: currentStatus, error: statusError } = await supabase
+          .from('order_status')
+          .select('status')
+          .eq('order_id', orderId)
+          .single();
+        
+        if (statusError && statusError.code !== 'PGRST116') {
+          // PGRST116 is "not found" which is okay
+          throw statusError;
+        }
+        
+        const currentStatusValue = currentStatus?.status || 'processing';
+        
+        // Only allow "delivered" if current status is "ready to pickup"
+        if (currentStatusValue !== 'ready to pickup') {
+          Alert.alert(
+            'Cannot Mark as Delivered',
+            'You must first mark this order as "Ready to Pickup" before marking it as "Delivered".',
+            [{ text: 'OK' }]
+          );
+          setUpdating(prev => ({ ...prev, [orderId]: false }));
+          return;
+        }
+      }
+      
       const updateData = { order_id: orderId, status: newStatus };
       
       // If marking as delivered, add deliverer_id
@@ -143,9 +156,46 @@ export default function DelivererMyDeliveries() {
         
       if (error) throw error;
       
-      setOrders(prev => prev.map(order => 
-        order.id === orderId ? { ...order, status: newStatus } : order
-      ));
+      // MVP customer notifications: ready to pickup + delivered only
+      if (newStatus === 'ready to pickup' || newStatus === 'delivered') {
+        try {
+          // Get order details to send notification to customer
+          const { data: order } = await supabase
+            .from('orders')
+            .select('user_id, order_code, restaurant_name')
+            .eq('id', orderId)
+            .single();
+
+          if (order?.user_id) {
+            if (newStatus === 'ready to pickup') {
+              notificationService.sendPushToUser(order.user_id, {
+                type: 'order_ready',
+                title: 'Order Ready for Pickup!',
+                body: `Your order #${order.order_code} from ${order.restaurant_name} is ready for pickup.`,
+                data: { orderId, orderCode: order.order_code }
+              });
+            } else if (newStatus === 'delivered') {
+              notificationService.sendPushToUser(order.user_id, {
+                type: 'order_delivered',
+                title: 'Order Delivered',
+                body: `Your order #${order.order_code} has been delivered.`,
+                data: { orderId, orderCode: order.order_code }
+              });
+            }
+          }
+        } catch (notifError) {
+          console.error('Error sending order ready notification:', notifError);
+          // Don't fail the status update if notification fails
+        }
+      }
+      
+      // Update the order status in the grouped structure
+      setOrders(prev => prev.map(restaurantGroup => ({
+        ...restaurantGroup,
+        orders: restaurantGroup.orders.map(order => 
+          order.id === orderId ? { ...order, status: newStatus } : order
+        )
+      })));
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to update status');
     }
@@ -163,25 +213,10 @@ export default function DelivererMyDeliveries() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.bgColor2 }}>
-      <View style={{ backgroundColor: themeColors.bgColor2, padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.bgColor2 }} edges={['bottom']}>
+      <View style={{ backgroundColor: themeColors.bgColor2, padding: 20, paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>My Deliveries</Text>
-        <TouchableOpacity
-          onPress={onRefresh}
-          disabled={refreshing}
-          style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            padding: 8,
-            borderRadius: 8,
-            opacity: refreshing ? 0.6 : 1
-          }}
-        >
-          <Icon.RefreshCcw 
-            size={20} 
-            color="white" 
-            style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
-          />
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
       <View style={{ flex: 1, backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
         {orders.length === 0 ? (
@@ -190,6 +225,7 @@ export default function DelivererMyDeliveries() {
           <FlatList
             data={orders}
             keyExtractor={(item, index) => `${item.type}-${index}`}
+            contentContainerStyle={{ paddingBottom: 20 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             renderItem={({ item }) => (
               <View style={{ marginBottom: 20 }}>
@@ -298,11 +334,16 @@ export default function DelivererMyDeliveries() {
 
                     <Text style={{ color: '#333', marginTop: 2, marginBottom: 8 }}>Status: <Text style={{ fontWeight: 'bold' }}>{order.status}</Text></Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {STATUS_OPTIONS.map(status => (
+                      {STATUS_OPTIONS.map(status => {
+                        // Disable "delivered" button if status is not "ready to pickup"
+                        const isDeliveredDisabled = status === 'delivered' && order.status !== 'ready to pickup';
+                        const isDisabled = updating[order.id] || order.status === status || isDeliveredDisabled;
+                        
+                        return (
                         <TouchableOpacity
                           key={status}
                           onPress={() => updateStatus(order.id, status)}
-                          disabled={updating[order.id] || order.status === status}
+                            disabled={isDisabled}
                           style={{
                             backgroundColor: order.status === status ? themeColors.purple : '#eee',
                             paddingVertical: 6,
@@ -310,12 +351,13 @@ export default function DelivererMyDeliveries() {
                             borderRadius: 8,
                             marginRight: 8,
                             marginBottom: 8,
-                            opacity: updating[order.id] && order.status !== status ? 0.5 : 1,
+                              opacity: isDisabled ? 0.5 : 1,
                           }}
                         >
                           <Text style={{ color: order.status === status ? 'white' : themeColors.purple, fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</Text>
                         </TouchableOpacity>
-                      ))}
+                        );
+                      })}
                     </View>
                   </View>
                 ))}

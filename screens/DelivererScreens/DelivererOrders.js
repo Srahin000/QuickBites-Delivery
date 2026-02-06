@@ -5,6 +5,7 @@ import * as Icon from 'react-native-feather';
 import supabase from "../../supabaseClient"
 import { themeColors } from '../../theme';
 import { useSession } from '../../context/SessionContext-v2';
+import notificationService from '../../services/notificationService';
 
 export default function DelivererOrders() {
   const [orders, setOrders] = useState([]);
@@ -52,22 +53,6 @@ export default function DelivererOrders() {
     fetchOrders();
   }, []);
 
-  // Listen for refresh parameter from tab press
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('state', (e) => {
-      const state = e.data.state;
-      if (state && state.routes) {
-        const currentRoute = state.routes[state.index];
-        if (currentRoute.name === 'Available Orders' && currentRoute.params?.refresh) {
-          // Tab was pressed, trigger refresh
-          onRefresh();
-        }
-      }
-    });
-
-    return unsubscribe;
-  }, [navigation]);
-
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchOrders(true);
@@ -77,17 +62,33 @@ export default function DelivererOrders() {
     if (!session?.user) return;
     setAccepting(prev => ({ ...prev, [orderId]: true }));
     try {
+      const acceptedOrder = orders.find(o => o.id === orderId);
       // Update deliverer_id in orders
       const { error } = await supabase
         .from('orders')
         .update({ deliverer_id: session.user.id })
         .eq('id', orderId);
       if (error) throw error;
-      // Also set status to 'processing' in order_status with deliverer_id
+      // MVP: Treat deliverer acceptance as the moment the order becomes "preparing"
       const { error: statusError } = await supabase
         .from('order_status')
-        .upsert({ order_id: orderId, status: 'processing', deliverer_id: session.user.id }, { onConflict: ['order_id'] });
+        .upsert({ order_id: orderId, status: 'preparing', deliverer_id: session.user.id }, { onConflict: ['order_id'] });
       if (statusError) throw statusError;
+
+      // Notify customer: preparing (do not notify on processing for MVP)
+      try {
+        if (acceptedOrder?.user_id) {
+          notificationService.sendPushToUser(acceptedOrder.user_id, {
+            type: 'order_preparing',
+            title: 'Your order is preparing',
+            body: `Order #${acceptedOrder.order_code} from ${acceptedOrder.restaurant_name} is now being prepared.`,
+            data: { orderId, orderCode: acceptedOrder.order_code }
+          });
+        }
+      } catch (notifErr) {
+        console.error('Error sending preparing notification:', notifErr);
+      }
+
       setOrders(prev => prev.filter(order => order.id !== orderId));
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to accept order');
@@ -110,25 +111,10 @@ export default function DelivererOrders() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.bgColor2 }}>
-      <View style={{ backgroundColor: themeColors.bgColor2, padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.bgColor2 }} edges={['bottom']}>
+      <View style={{ backgroundColor: themeColors.bgColor2, padding: 20, paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>Available Orders</Text>
-        <TouchableOpacity
-          onPress={onRefresh}
-          disabled={refreshing}
-          style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            padding: 8,
-            borderRadius: 8,
-            opacity: refreshing ? 0.6 : 1
-          }}
-        >
-          <Icon.RefreshCcw 
-            size={20} 
-            color="white" 
-            style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
-          />
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
       <View style={{ flex: 1, backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
         {orders.length === 0 ? (
@@ -137,6 +123,7 @@ export default function DelivererOrders() {
           <FlatList
             data={orders}
             keyExtractor={item => item.id.toString()}
+            contentContainerStyle={{ paddingBottom: 20 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             renderItem={({ item }) => (
               <View style={{ backgroundColor: '#f7f7f7', borderRadius: 16, padding: 16, marginBottom: 16 }}>

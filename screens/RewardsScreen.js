@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, ScrollView, Alert, Clipboard } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import supabase from "../supabaseClient"
@@ -14,9 +14,10 @@ export default function RewardsScreen() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
-  const [redeemingCoupon, setRedeemingCoupon] = useState(false);
-  const [userCoupons, setUserCoupons] = useState([]);
+  const [referralPromoEnabled, setReferralPromoEnabled] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
+  const [referralStats, setReferralStats] = useState({ totalReferrals: 0, pendingRewards: 0 });
+  const [couponUsesRemaining, setCouponUsesRemaining] = useState(0);
 
   const fetchLeaderboard = async () => {
     setLoading(true);
@@ -29,170 +30,119 @@ export default function RewardsScreen() {
     setLoading(false);
   };
 
-  const fetchUserCoupons = async () => {
-    if (!session?.user) return;
-    
-    const { data, error } = await supabase
-      .from('coupons_usage')
-      .select('*, coupons(*)')
-      .eq('user_id', session.user.id)
-      .eq('status', 'redeemed'); // Only fetch redeemed coupons, not applied ones
-    
-    if (!error) {
-      setUserCoupons(data || []);
+  // Fetch service approval ID 4 status
+  const fetchReferralPromoStatus = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('service_approval')
+        .select('open')
+        .eq('id', 4)
+        .single();
+      
+      if (!error && data) {
+        setReferralPromoEnabled(data.open);
+      }
+    } catch (err) {
+      console.error('Error fetching referral promo status:', err);
     }
   };
 
-  const redeemCoupon = async () => {
-    if (!couponCode.trim()) {
-      Alert.alert('Error', 'Please enter a coupon code');
-      return;
-    }
-
-    if (!session?.user) {
-      Alert.alert('Error', 'Please sign in to redeem coupons');
-      return;
-    }
-
-    setRedeemingCoupon(true);
-
+  // Fetch or generate user's referral code and coupon uses
+  const fetchReferralCode = async () => {
+    if (!session?.user || !referralPromoEnabled) return;
+    
     try {
-      console.log('Attempting to redeem coupon:', couponCode.trim().toUpperCase());
-      
-      // Check if coupon exists and is valid
-      const { data: coupon, error: couponError } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('coupon_code', couponCode.trim().toUpperCase())
-        .single();
-
-      console.log('Coupon query result:', { coupon, couponError });
-
-      if (couponError || !coupon) {
-        console.log('Coupon not found or error:', couponError);
-        Alert.alert('Invalid Coupon', 'This coupon code does not exist');
-        setRedeemingCoupon(false);
-        return;
-      }
-
-      // Validate coupon: check if valid and not expired
-      const now = new Date();
-      const endDate = new Date(coupon.end_at);
-      
-      if (!coupon.valid) {
-        Alert.alert('Invalid Coupon', 'This coupon is no longer valid');
-        setRedeemingCoupon(false);
-        return;
-      }
-
-      if (now > endDate) {
-        Alert.alert('Expired Coupon', 'This coupon has expired');
-        setRedeemingCoupon(false);
-        return;
-      }
-
-      // Check if user has already redeemed this coupon and reached their max usage
-      const { data: existingUsage, error: existingError } = await supabase
-        .from('coupons_usage')
-        .select('*')
+      // Check if user already has a referral code
+      const { data: existingCode, error: fetchError } = await supabase
+        .from('user_referral_codes')
+        .select('referral_code, coupon_uses_remaining')
         .eq('user_id', session.user.id)
-        .eq('coupon_id', coupon.id)
         .single();
-
-      // Check if user has reached their max usage for this coupon (skip for dev-fee coupons)
-      if (coupon.category !== 'dev-fee' && coupon.max_usage && existingUsage) {
-        // Count how many times this user has used this coupon
-        const { data: userUsageData, error: userUsageError } = await supabase
-          .from('coupons_usage')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .eq('coupon_id', coupon.id)
-          .in('status', ['redeemed', 'applied']);
-
-        const userUsageCount = userUsageData?.length || 0;
+      
+      if (!fetchError && existingCode) {
+        setReferralCode(existingCode.referral_code);
+        setCouponUsesRemaining(existingCode.coupon_uses_remaining || 0);
+      } else {
+        // Generate new code
+        const { data: newCode, error: functionError } = await supabase
+          .rpc('generate_referral_code');
         
-        if (userUsageCount >= coupon.max_usage) {
-          Alert.alert('Coupon Limit Reached', `You have already used this coupon ${coupon.max_usage} time(s). Max usage per user: ${coupon.max_usage}`);
-          setRedeemingCoupon(false);
-          return;
-        }
-      }
-
-      // Add coupon to user's account with "redeemed" status
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30); // Coupon expires in 30 days
-
-      console.log('Inserting coupon usage:', {
-        user_id: session.user.id,
-        coupon_id: coupon.id,
-        status: 'redeemed',
-        redeemed_at: new Date().toISOString(),
-        expires_at: expiresAt.toISOString()
-      });
-
-      // Try to insert, but handle the case where user already has coupons
-      const { error: insertError } = await supabase
-        .from('coupons_usage')
-        .insert({
-          user_id: session.user.id,
-          coupon_id: coupon.id,
-          status: 'redeemed',
-          redeemed_at: new Date().toISOString(),
-          expires_at: expiresAt.toISOString()
-        });
-
-      console.log('Insert result:', { insertError });
-
-      if (insertError) {
-        console.log('Insert error details:', insertError);
-        
-        // If it's a duplicate key error, check if it's the same coupon
-        if (insertError.code === '23505') {
-          // Check if user already has this specific coupon
-          const { data: existingCoupon, error: checkError } = await supabase
-            .from('coupons_usage')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .eq('coupon_id', coupon.id)
-            .single();
-
-          if (existingCoupon) {
-            Alert.alert('Already Redeemed', 'You have already redeemed this coupon');
-            setRedeemingCoupon(false);
-            return;
-          } else {
-            // This is a different coupon but user_id constraint is blocking
-            Alert.alert('Error', 'Database constraint error. Please contact support.');
-            setRedeemingCoupon(false);
-            return;
+        if (!functionError && newCode) {
+          // Insert the new code
+          const { error: insertError } = await supabase
+            .from('user_referral_codes')
+            .insert([
+              {
+                user_id: session.user.id,
+                referral_code: newCode,
+                coupon_uses_remaining: 0,
+              },
+            ]);
+          
+          if (!insertError) {
+            setReferralCode(newCode);
+            setCouponUsesRemaining(0);
           }
         }
-        
-        Alert.alert('Error', 'Failed to redeem coupon. Please try again.');
-        setRedeemingCoupon(false);
-        return;
       }
-
-      Alert.alert('Success!', `Coupon "${couponCode}" has been redeemed! You can now use it at checkout.`);
-      setCouponCode('');
-      fetchUserCoupons(); // Refresh user coupons
-    } catch (error) {
-      console.error('Coupon redemption error:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
-    } finally {
-      setRedeemingCoupon(false);
+    } catch (err) {
+      console.error('Error fetching/generating referral code:', err);
     }
+  };
+
+  // Fetch referral stats
+  const fetchReferralStats = async () => {
+    if (!session?.user || !referralPromoEnabled) return;
+    
+    try {
+      // Get total referrals
+      const { data: referrals, error: refError } = await supabase
+        .from('referral_usage')
+        .select('id, referrer_rewarded')
+        .eq('referrer_user_id', session.user.id);
+      
+      if (!refError && referrals) {
+        const totalReferrals = referrals.length;
+        const pendingRewards = referrals.filter(r => !r.referrer_rewarded).length;
+        setReferralStats({ totalReferrals, pendingRewards });
+      }
+    } catch (err) {
+      console.error('Error fetching referral stats:', err);
+    }
+  };
+
+  const handleCopyCode = () => {
+    Clipboard.setString(referralCode);
+    Alert.alert('Copied!', 'Referral code copied to clipboard');
   };
 
   useEffect(() => {
     fetchLeaderboard();
-    fetchUserCoupons();
+    fetchReferralPromoStatus();
   }, [session]);
+
+  useEffect(() => {
+    if (referralPromoEnabled && session?.user) {
+      fetchReferralCode();
+      fetchReferralStats();
+    }
+  }, [referralPromoEnabled, session]);
+
+  // Refresh when screen comes into focus (tab press)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      handleRefresh();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchLeaderboard();
-    await fetchUserCoupons();
+    if (referralPromoEnabled) {
+      await fetchReferralStats();
+    }
     setRefreshing(false);
   };
 
@@ -221,11 +171,7 @@ export default function RewardsScreen() {
         </Text>
       </View>
       {/* Main Content (white background) */}
-      <KeyboardAvoidingView 
-        style={{ flex: 1, backgroundColor: '#fff' }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      >
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
         <ScrollView 
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
@@ -263,115 +209,130 @@ export default function RewardsScreen() {
           </Animated.View>
         </Animated.View>
 
-        {/* Coupon Redemption Section */}
-        <Animated.View entering={FadeInDown.delay(400)} style={{ marginTop: 32, paddingHorizontal: 16 }}>
-          <View style={{ backgroundColor: '#F3F4F6', borderRadius: 16, padding: 20, marginBottom: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <Icon.Gift className="w-6 h-6 text-purple-600 mr-2" />
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: themeColors.purple }}>
-                Redeem Your Coupon
-              </Text>
-            </View>
-            
-            <Text style={{ color: '#6B7280', fontSize: 14, marginBottom: 16 }}>
-              Enter your coupon code to unlock special discounts and offers
-            </Text>
-            
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TextInput
-                style={{
-                  flex: 1,
-                  backgroundColor: 'white',
-                  borderRadius: 12,
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                  borderWidth: 1,
-                  borderColor: '#D1D5DB',
-                  fontSize: 16,
-                  marginRight: 12,
-                }}
-                placeholder="Enter coupon code"
-                value={couponCode}
-                onChangeText={setCouponCode}
-                autoCapitalize="characters"
-                placeholderTextColor="#9CA3AF"
-              />
-              <TouchableOpacity
-                onPress={redeemCoupon}
-                disabled={redeemingCoupon || !couponCode.trim()}
-                style={{
-                  backgroundColor: redeemingCoupon || !couponCode.trim() ? '#D1D5DB' : themeColors.purple,
-                  borderRadius: 12,
-                  paddingHorizontal: 20,
-                  paddingVertical: 12,
-                }}
-              >
-                {redeemingCoupon ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Text style={{ color: 'white', fontWeight: '600' }}>Redeem</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* User's Coupons */}
-          {userCoupons.length > 0 && (
-            <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: '#E5E7EB' }}>
+        {/* Referral Section */}
+        {referralPromoEnabled && referralCode && (
+          <Animated.View entering={FadeInDown.delay(300)} style={{ marginTop: 32, paddingHorizontal: 16 }}>
+            <View style={{ backgroundColor: '#F3F4F6', borderRadius: 16, padding: 20, marginBottom: 20 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-                <Icon.CheckCircle className="w-6 h-6 text-green-600 mr-2" />
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#374151' }}>
-                  Your Active Coupons
+                <Icon.Gift color={themeColors.purple} width={24} height={24} style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: themeColors.purple }}>
+                  Share & Earn
                 </Text>
               </View>
               
-              {userCoupons.map((userCoupon, index) => {
-                const coupon = userCoupon.coupons;
-                
-                return (
-                  <View key={index} style={{ 
-                    backgroundColor: '#FEF3C7', 
-                    borderRadius: 12, 
-                    padding: 16, 
-                    marginBottom: 12,
-                    borderWidth: 1,
-                    borderColor: '#FCD34D'
-                  }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 16, fontWeight: '600', color: '#92400E' }}>
-                          {coupon?.coupon_code}
-                        </Text>
-                        <Text style={{ fontSize: 14, color: '#B45309', marginTop: 4 }}>
-                          {coupon?.category === 'delivery-fee' ? 'Free Delivery' : 
-                           coupon?.category === 'restaurant-fee' ? `${coupon?.percentage}% Off Restaurant` :
-                           coupon?.category === 'dev-fee' ? 'Free Order (Testing)' :
-                           coupon?.category === 'item-fee' ? `${coupon?.percentage}% Off Specific Item` :
-                           `${coupon?.percentage}% Off`}
-                        </Text>
-                        {coupon?.title && (
-                          <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-                            {coupon.title}
-                          </Text>
-                        )}
-                      </View>
-                      <View style={{ 
-                        backgroundColor: '#D97706', 
-                        borderRadius: 8, 
-                        paddingHorizontal: 8, 
-                        paddingVertical: 4 
-                      }}>
-                        <Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>
-                          Redeemed
-                        </Text>
-                      </View>
-                    </View>
+              <Text style={{ color: '#6B7280', fontSize: 14, marginBottom: 16 }}>
+                Share your code with friends! When they order, you both get 50% off delivery fees!
+              </Text>
+              
+              {/* Referral Code Display */}
+              <View style={{ 
+                backgroundColor: 'white', 
+                borderRadius: 12, 
+                padding: 16, 
+                marginBottom: 16,
+                borderWidth: 2,
+                borderColor: themeColors.purple,
+                borderStyle: 'dashed'
+              }}>
+                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 8, textAlign: 'center' }}>
+                  YOUR REFERRAL CODE
+                </Text>
+                <Text style={{ 
+                  fontSize: 32, 
+                  fontWeight: 'bold', 
+                  color: themeColors.purple, 
+                  textAlign: 'center',
+                  letterSpacing: 4
+                }}>
+                  {referralCode}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleCopyCode}
+                style={{
+                  backgroundColor: themeColors.purple,
+                  borderRadius: 12,
+                  paddingVertical: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon.Copy color="white" width={20} height={20} style={{ marginRight: 8 }} />
+                <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>Copy Code</Text>
+              </TouchableOpacity>
+
+              {/* Stats */}
+              <View style={{ 
+                flexDirection: 'row', 
+                marginTop: 16, 
+                paddingTop: 16, 
+                borderTopWidth: 1, 
+                borderTopColor: '#E5E7EB' 
+              }}>
+                <View style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#000000' }}>
+                    {referralStats.totalReferrals}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
+                    Total Referrals
+                  </Text>
+                </View>
+                <View style={{ width: 1, backgroundColor: '#E5E7EB' }} />
+                <View style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 24, fontWeight: 'bold', color: themeColors.purple }}>
+                    {referralStats.pendingRewards}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
+                    Pending Rewards
+                  </Text>
+                </View>
+              </View>
+
+              {referralStats.pendingRewards > 0 && (
+                <View style={{ 
+                  backgroundColor: '#FEF3C7', 
+                  borderRadius: 8, 
+                  padding: 12, 
+                  marginTop: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center'
+                }}>
+                  <Icon.Info color="#92400E" width={20} height={20} style={{ marginRight: 8 }} />
+                  <Text style={{ color: '#78350F', fontSize: 13, flex: 1 }}>
+                    You have {referralStats.pendingRewards} pending reward{referralStats.pendingRewards > 1 ? 's' : ''}! Use them on your next order.
+                  </Text>
+                </View>
+              )}
+
+              {/* REFERRAL50 Coupon Display */}
+              {couponUsesRemaining > 0 && (
+                <View style={{ 
+                  backgroundColor: '#FEF3C7', 
+                  borderRadius: 12, 
+                  padding: 16, 
+                  marginTop: 16,
+                  borderWidth: 2,
+                  borderColor: themeColors.yellow,
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <Icon.Tag color={themeColors.purple} width={20} height={20} style={{ marginRight: 8 }} />
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: themeColors.purple }}>
+                      50% Off Coupon
+                    </Text>
                   </View>
-                );
-              })}
+                  <Text style={{ fontSize: 12, color: '#92400E', marginBottom: 8 }}>
+                    Code: <Text style={{ fontWeight: 'bold', fontFamily: 'monospace' }}>REFERRAL50</Text>
+                  </Text>
+                  <Text style={{ fontSize: 14, color: '#78350F', fontWeight: '600' }}>
+                    {couponUsesRemaining} use{couponUsesRemaining !== 1 ? 's' : ''} remaining
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
-        </Animated.View>
+          </Animated.View>
+        )}
 
         {/* Leaderboard */}
         <View style={{ flex: 1, marginTop: 40, paddingHorizontal: 16 }}>
@@ -423,7 +384,7 @@ export default function RewardsScreen() {
         {/* Spacing after leaderboard */}
         <View style={{ height: 40 }} />
         </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
+    </SafeAreaView>
   );
 } 

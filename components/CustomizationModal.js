@@ -122,13 +122,22 @@ export default function CustomizationModal({
       // Check if this category allows multiple selections
       const isMultipleSelection = categoryValue.Selection === "multiple";
       
+      // Sort items: items with Cancel: "true" should appear first
+      const categoryEntries = Object.entries(categoryValue).filter(([key]) => key !== "Selection");
+      const sortedEntries = categoryEntries.sort(([keyA, valueA], [keyB, valueB]) => {
+        const hasCancelA = typeof valueA === 'object' && valueA?.Cancel === "true";
+        const hasCancelB = typeof valueB === 'object' && valueB?.Cancel === "true";
+        
+        if (hasCancelA && !hasCancelB) return -1; // A comes first
+        if (!hasCancelA && hasCancelB) return 1;  // B comes first
+        return 0; // Keep original order for others
+      });
+      
       return (
         <View key={categoryKey} className="mb-8">
           <Text className="text-xl font-bold text-gray-800 mb-4">{capitalizeText(categoryKey)}</Text>
           
-          {Object.entries(categoryValue).map(([itemKey, itemValue]) => {
-            // Skip the "Selection" property
-            if (itemKey === "Selection") return null;
+          {sortedEntries.map(([itemKey, itemValue]) => {
             if (typeof itemValue === 'number') {
               // Simple item (e.g., "Guacamole": 2.95)
               const isSelected = selectedCustomizations[`${categoryKey}_${itemKey}`];
@@ -137,6 +146,20 @@ export default function CustomizationModal({
                   key={`${categoryKey}_${itemKey}`}
                   onPress={() => {
                     if (!isSelected) {
+                      // For multiple selection categories, if selecting a non-Cancel item,
+                      // deselect any Cancel items in this category
+                      if (isMultipleSelection) {
+                        Object.keys(categoryValue).forEach(otherItemKey => {
+                          if (otherItemKey !== itemKey && otherItemKey !== "Selection") {
+                            const otherValue = categoryValue[otherItemKey];
+                            if (typeof otherValue === 'object' && otherValue?.Cancel === "true") {
+                              handleCustomizationChange(`${categoryKey}_${otherItemKey}`, false);
+                              handleCustomizationChange(`${categoryKey}_${otherItemKey}_option`, null);
+                            }
+                          }
+                        });
+                      }
+                      
                       // For single selection categories, deselect other items in the same category first
                       if (!isMultipleSelection) {
                         // Clear all other selections in this category
@@ -179,6 +202,8 @@ export default function CustomizationModal({
               );
             } else if (typeof itemValue === 'object') {
               // Nested item (e.g., "Brown Rice": {"extra": 0, "light": 0, "regular": 0})
+              // Check if this item has Cancel: "true"
+              const hasCancelFlag = itemValue?.Cancel === "true";
               const isItemSelected = selectedCustomizations[`${categoryKey}_${itemKey}`];
               const selectedSubOption = selectedCustomizations[`${categoryKey}_${itemKey}_option`];
               
@@ -192,6 +217,29 @@ export default function CustomizationModal({
                         handleCustomizationChange(`${categoryKey}_${itemKey}`, false);
                         handleCustomizationChange(`${categoryKey}_${itemKey}_option`, null);
                       } else {
+                        // If this item has Cancel: "true" and it's a multiple selection category,
+                        // deselect all other items in this category
+                        if (hasCancelFlag && isMultipleSelection) {
+                          Object.keys(categoryValue).forEach(otherItemKey => {
+                            if (otherItemKey !== itemKey && otherItemKey !== "Selection") {
+                              handleCustomizationChange(`${categoryKey}_${otherItemKey}`, false);
+                              handleCustomizationChange(`${categoryKey}_${otherItemKey}_option`, null);
+                            }
+                          });
+                        } else if (!hasCancelFlag && isMultipleSelection) {
+                          // If selecting a non-Cancel item in multiple selection category,
+                          // deselect any Cancel items in this category
+                          Object.keys(categoryValue).forEach(otherItemKey => {
+                            if (otherItemKey !== itemKey && otherItemKey !== "Selection") {
+                              const otherValue = categoryValue[otherItemKey];
+                              if (typeof otherValue === 'object' && otherValue?.Cancel === "true") {
+                                handleCustomizationChange(`${categoryKey}_${otherItemKey}`, false);
+                                handleCustomizationChange(`${categoryKey}_${otherItemKey}_option`, null);
+                              }
+                            }
+                          });
+                        }
+                        
                         // For single selection categories, deselect other items in the same category first
                         if (!isMultipleSelection) {
                           // Clear all other selections in this category
@@ -203,13 +251,19 @@ export default function CustomizationModal({
                           });
                         }
                         
-                        // Select item and set default sub-option
+                        // Select item and set default sub-option (skip Cancel key)
                         handleCustomizationChange(`${categoryKey}_${itemKey}`, true);
-                        // Always default to "regular" if available, otherwise first option
-                        const defaultOption = Object.keys(itemValue).includes('regular') 
-                          ? 'regular' 
-                          : Object.keys(itemValue)[0];
-                        handleCustomizationChange(`${categoryKey}_${itemKey}_option`, defaultOption);
+                        // For Cancel items, don't set a sub-option. For others, set default.
+                        if (!hasCancelFlag) {
+                          // Always default to "regular" if available, otherwise first option (excluding Cancel)
+                          const options = Object.keys(itemValue).filter(k => k !== 'Cancel');
+                          const defaultOption = options.includes('regular') 
+                            ? 'regular' 
+                            : options[0];
+                          if (defaultOption) {
+                            handleCustomizationChange(`${categoryKey}_${itemKey}_option`, defaultOption);
+                          }
+                        }
                       }
                     }}
                     className={`p-4 rounded-xl border-2 mb-2 ${
@@ -232,13 +286,13 @@ export default function CustomizationModal({
                     </View>
                   </TouchableOpacity>
                   
-                  {/* Sub-options (only show if main item is selected) */}
-                  {isItemSelected && (
+                  {/* Sub-options (only show if main item is selected and it's not a Cancel item) */}
+                  {isItemSelected && !hasCancelFlag && (
                     <View className="ml-4 mt-2">
-                      {Object.keys(itemValue).length > 3 ? (
+                      {Object.keys(itemValue).filter(k => k !== 'Cancel').length > 3 ? (
                         // Vertical layout for more than 4 options
                         <View className="space-y-2">
-                          {Object.entries(itemValue).map(([subKey, subValue]) => {
+                          {Object.entries(itemValue).filter(([subKey]) => subKey !== 'Cancel').map(([subKey, subValue]) => {
                             const isSubSelected = selectedSubOption === subKey;
                             return (
                               <TouchableOpacity
@@ -269,7 +323,7 @@ export default function CustomizationModal({
                       ) : (
                         // Horizontal layout for 4 or fewer options
                         <View className="flex-row space-x-2">
-                          {Object.entries(itemValue).map(([subKey, subValue]) => {
+                          {Object.entries(itemValue).filter(([subKey]) => subKey !== 'Cancel').map(([subKey, subValue]) => {
                             const isSubSelected = selectedSubOption === subKey;
                             return (
                               <TouchableOpacity

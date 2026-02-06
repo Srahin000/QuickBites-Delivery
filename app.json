@@ -17,6 +17,14 @@
         }
       ],
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/image.png",
+          "color": "#8B5CF6",
+          "mode": "production"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "ios": {
@@ -27,6 +35,12 @@
         }
       ]
     ],
+    "notification": {
+      "icon": "./assets/image.png",
+      "color": "#8B5CF6",
+      "iosDisplayInForeground": true,
+      "androidMode": "default"
+    },
     "splash": {
       "image": "./assets/Untitled design (1).png",
       "resizeMode": "contain",
@@ -37,7 +51,17 @@
       "bundleIdentifier": "com.srahin000.quickbites",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true,
+          "NSAllowsArbitraryLoads": false,
+          "NSExceptionDomains": {
+            "localhost": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            }
+          }
+        }
       },
       "entitlements": {
         "com.apple.developer.in-app-payments": [

@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import supabase from "../supabaseClient"
@@ -25,46 +25,49 @@ export default function OrderDetails() {
   const [order, setOrder] = useState(null);
   const [status, setStatus] = useState('processing');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchOrderDetails = async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    try {
+      // Fetch order from orders table
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) {
+        console.error("Order fetch error:", orderError);
+        return;
+      }
+
+      // Fetch status from order_status table (including delivery time)
+      const { data: statusData } = await supabase
+        .from('order_status')
+        .select('status, delivered_at')
+        .eq('order_id', orderId)
+        .single();
+
+      setStatus(statusData?.status || 'processing');
+      
+      // Debug: Log order data to see what's missing
+      console.log('Order data:', orderData);
+      console.log('Restaurant name:', orderData.restaurant_name);
+      
+      setOrder({
+        ...orderData,
+        delivered_at: statusData?.delivered_at
+      });
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchOrderDetails = async () => {
-      try {
-        // Fetch order from orders table
-        const { data: orderData, error: orderError } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('id', orderId)
-          .single();
-
-        if (orderError) {
-          console.error("Order fetch error:", orderError);
-          return;
-        }
-
-        // Fetch status from order_status table (including delivery time)
-        const { data: statusData } = await supabase
-          .from('order_status')
-          .select('status, delivered_at')
-          .eq('order_id', orderId)
-          .single();
-
-        setStatus(statusData?.status || 'processing');
-        
-        // Debug: Log order data to see what's missing
-        console.log('Order data:', orderData);
-        console.log('Restaurant name:', orderData.restaurant_name);
-        
-        setOrder({
-          ...orderData,
-          delivered_at: statusData?.delivered_at
-        });
-      } catch (err) {
-        console.error("Fetch error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrderDetails();
   }, [orderId, isHistory]);
 
@@ -132,7 +135,15 @@ export default function OrderDetails() {
         shadowRadius: 12,
         elevation: 8,
       }}>
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => fetchOrderDetails(true)}
+            />
+          }
+        >
       <Text className="text-xl font-bold mb-2">Order #{order.order_code}</Text>
       <Text className="text-sm text-gray-500 mb-4">Status: {status}</Text>
       <Text className="text-lg font-semibold mb-2">Restaurant: {order.restaurant_name || 'Restaurant not specified'}</Text>

@@ -25,7 +25,7 @@ export default function OrderHistoryScreen() {
       // Fetch all orders for the user
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .select('id, order_code, restaurant_name, total, created_at')
+        .select('id, order_code, restaurant_name, total, created_at, deliverer_id')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -54,12 +54,32 @@ export default function OrderHistoryScreen() {
         statusMap[order_id] = { status, delivered_at };
       });
 
+      // Get unique deliverer IDs
+      const delivererIds = [...new Set(orderData.map(o => o.deliverer_id).filter(Boolean))];
+      
+      // Fetch deliverer names
+      let delivererMap = {};
+      if (delivererIds.length > 0) {
+        const { data: deliverers } = await supabase
+          .from('users')
+          .select('id, first_name, last_name')
+          .in('id', delivererIds);
+        
+        if (deliverers) {
+          delivererMap = deliverers.reduce((acc, d) => {
+            acc[d.id] = `${d.first_name || ''} ${d.last_name || ''}`.trim() || 'Unknown Deliverer';
+            return acc;
+          }, {});
+        }
+      }
+
       // Filter to only show delivered orders
       const deliveredOrders = orderData
         .map(order => ({
           ...order,
           status: statusMap[order.id]?.status || 'processing',
           delivered_at: statusMap[order.id]?.delivered_at,
+          deliverer_name: order.deliverer_id ? delivererMap[order.deliverer_id] : null,
         }))
         .filter(order => order.status === 'delivered');
 
@@ -122,22 +142,6 @@ export default function OrderHistoryScreen() {
             <Text className="text-2xl font-bold text-gray-800">Order History</Text>
             <Text className="text-gray-600 mt-1">Your completed deliveries</Text>
           </View>
-          <TouchableOpacity
-            onPress={onRefresh}
-            disabled={refreshing}
-            style={{
-              backgroundColor: '#F3F4F6',
-              padding: 8,
-              borderRadius: 8,
-              opacity: refreshing ? 0.6 : 1
-            }}
-          >
-            <Icon.RefreshCcw 
-              size={20} 
-              color="#6B7280" 
-              style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
-            />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -188,6 +192,16 @@ export default function OrderHistoryScreen() {
                 <Text className="text-lg font-bold text-gray-800 mb-2">
                   {item.restaurant_name}
                 </Text>
+
+                {/* Deliverer Name */}
+                {item.deliverer_name && (
+                  <View className="flex-row items-center mb-2">
+                    <Icon.Truck size={14} color={themeColors.purple} />
+                    <Text className="text-sm text-gray-600 ml-1">
+                      Delivered by {item.deliverer_name}
+                    </Text>
+                  </View>
+                )}
 
                 {/* Order Details */}
                 <View className="flex-row justify-between items-center">

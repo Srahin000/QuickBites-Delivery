@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import supabase from "../supabaseClient"
@@ -25,41 +25,44 @@ export default function OrderHistoryDetails() {
   const [order, setOrder] = useState(null);
   const [status, setStatus] = useState('processing');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchOrderDetails = async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    try {
+      // Fetch order from orders table
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('*, deliverer:deliverer_id(first_name, last_name)')
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) {
+        console.error("Order fetch error:", orderError);
+        return;
+      }
+
+      // Fetch status from order_status table (including delivery time)
+      const { data: statusData } = await supabase
+        .from('order_status')
+        .select('status, delivered_at')
+        .eq('order_id', orderId)
+        .single();
+
+      setStatus(statusData?.status || 'processing');
+      setOrder({
+        ...orderData,
+        delivered_at: statusData?.delivered_at
+      });
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchOrderDetails = async () => {
-      try {
-        // Fetch order from orders table
-        const { data: orderData, error: orderError } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('id', orderId)
-          .single();
-
-        if (orderError) {
-          console.error("Order fetch error:", orderError);
-          return;
-        }
-
-        // Fetch status from order_status table (including delivery time)
-        const { data: statusData } = await supabase
-          .from('order_status')
-          .select('status, delivered_at')
-          .eq('order_id', orderId)
-          .single();
-
-        setStatus(statusData?.status || 'processing');
-        setOrder({
-          ...orderData,
-          delivered_at: statusData?.delivered_at
-        });
-      } catch (err) {
-        console.error("Fetch error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrderDetails();
   }, [orderId, isHistory]);
 
@@ -128,12 +131,30 @@ export default function OrderHistoryDetails() {
         shadowRadius: 12,
         elevation: 8,
       }}>
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => fetchOrderDetails(true)}
+            />
+          }
+        >
           <Text className="text-xl font-bold mb-2">Order #{order.order_code}</Text>
           <Text className="text-sm text-gray-500 mb-4">
             Status: {status}
           </Text>
           <Text className="text-lg font-semibold mb-2">Restaurant: {order.restaurant_name || 'Restaurant not specified'}</Text>
+          
+          {/* Deliverer Name */}
+          {order.deliverer && (order.deliverer.first_name || order.deliverer.last_name) && (
+            <View className="flex-row items-center mb-2">
+              <Icon.Truck size={16} color="#502efa" />
+              <Text className="text-base text-gray-700 ml-2">
+                Delivered by {order.deliverer.first_name || ''} {order.deliverer.last_name || ''}
+              </Text>
+            </View>
+          )}
           
           <Text className="text-base font-semibold mb-2">Items:</Text>
           {order.items && order.items.map((item, index) => (

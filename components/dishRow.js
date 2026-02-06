@@ -5,7 +5,7 @@ import * as Icon from "react-native-feather";
 import { useCart } from '../context/CartContext';
 import CustomizationModal from './CustomizationModal';
 
-export default function DishRow({ item, restaurant }) {
+export default function DishRow({ item, restaurant, isLast = false }) {
   const { addToCart, removeFromCart, cartItems } = useCart();
   const [selectedCustomizations, setSelectedCustomizations] = useState({});
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
@@ -130,79 +130,177 @@ export default function DishRow({ item, restaurant }) {
   const totalPrice = getTotalPrice();
 
   return (
-    <View className="flex-row items-center bg-white p-3 rounded-3xl shadow-2xl mb-3 mx-2">
-      {item?.image_url && (
-        <Image className="rounded-3xl" style={{ width: 100, height: 100 }} source={{ uri: item.image_url }} />
+    <View style={{ 
+      backgroundColor: 'white',
+      borderRadius: 12,
+      padding: 16,
+      marginHorizontal: 20,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      elevation: 2,
+    }}>
+      {/* Top Row: Item Name (Bold) and Price (Medium, secondary) on same line */}
+      <View style={{ 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'flex-start',
+        marginBottom: 8,
+      }}>
+        <Text style={{ 
+          fontSize: 17, 
+          fontWeight: '700', 
+          color: '#000000',
+          letterSpacing: -0.41,
+          lineHeight: 22,
+          flex: 1,
+          paddingRight: 12,
+        }}>
+          {item?.dish_name || 'Unknown Dish'}
+        </Text>
+        {(item?.menu_price && parseFloat(item.menu_price) > 0) && (
+          <Text style={{ 
+            fontSize: 16, 
+            fontWeight: '500', 
+            color: '#666666',
+            letterSpacing: -0.32,
+            lineHeight: 21,
+          }}>
+            ${totalPrice}
+          </Text>
+        )}
+      </View>
+
+      {/* Middle Row: Description below title, limited to 80% width */}
+      {item?.description && (
+        <Text style={{ 
+          fontSize: 15, 
+          fontWeight: '400', 
+          color: '#666666',
+          letterSpacing: -0.24,
+          lineHeight: 18,
+          width: '80%',
+          marginBottom: 12,
+        }}>
+          {item.description}
+        </Text>
       )}
 
-      <View className="flex flex-1 space-y-3">
-        <View className="pl-3">
-          <Text className="text-xl">{item?.dish_name || 'Unknown Dish'}</Text>
-          <Text className="text-gray-700">{item?.description || ''}</Text>
-        </View>
-
-        {/* Existing Cart Items */}
-        {allCartItems.length > 0 && (
-          <View className="pl-3 mb-2">
-            <Text className="text-sm font-semibold text-gray-700 mb-1">In Cart:</Text>
-            <View className="flex-row flex-wrap">
-              {allCartItems.map((cartItem, index) => (
-                <View key={index} className="px-2 py-1 bg-green-100 border border-green-300 rounded mr-2 mb-1">
-                  <Text className="text-xs text-green-700">
-                    {cartItem.quantity}x {cartItem.name}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Selected Indicator Only */}
-        {customizationData && Object.keys(selectedCustomizations).length > 0 && (
-          <View className="pl-3 mb-2">
-            <View className="px-3 py-1 bg-purple-100 border border-purple-300 rounded-lg self-start">
-              <Text className="text-xs text-purple-700 font-medium">Selected</Text>
-            </View>
-          </View>
-        )}
-
-        <View className="flex-row justify-between pl-3 items-center mt-2">
-          <Text className="text-gray-700 text-lg font-bold">${totalPrice}</Text>
-          <View className="flex-row items-center">
-            <TouchableOpacity
-              className="p-1 rounded-full"
-              style={{ backgroundColor: themeColors.bgColor(1) }}
-              onPress={() => removeFromCart(item)}
-            >
-              <Icon.Minus strokeWidth={2} height={20} width={20} stroke={'white'} />
-            </TouchableOpacity>
-
-            <Text className="px-3">{totalQuantity}</Text>
-
-            <TouchableOpacity
-              className="p-1 rounded-full"
-              style={{ backgroundColor: themeColors.bgColor(1) }}
-              onPress={() => {
-                if (customizationData && Object.keys(customizations).length > 0) {
-                  // Clear selections and show fresh customization modal
-                  setSelectedCustomizations({});
-                  setShowCustomizationModal(true);
-                } else {
-                  // Add to cart directly if no customizations
-                  addToCart({ 
-                    ...item, 
-                    name: item?.dish_name,
-                    price: parseFloat(totalPrice), 
-                    customizations: selectedCustomizations,
-                    option: null 
-                  }, restaurant);
-                }
-              }}
-            >
-              <Icon.Plus strokeWidth={2} height={20} width={20} stroke={'white'} />
-            </TouchableOpacity>
+      {/* Existing Cart Items */}
+      {allCartItems.length > 0 && (
+        <View style={{ marginTop: 8, marginBottom: 8 }}>
+          <Text style={{ 
+            fontSize: 13, 
+            fontWeight: '600', 
+            color: '#374151',
+            marginBottom: 4,
+          }}>
+            In Cart:
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {allCartItems.map((cartItem, index) => (
+              <View key={index} style={{ 
+                paddingHorizontal: 8, 
+                paddingVertical: 4, 
+                backgroundColor: '#D1FAE5', 
+                borderWidth: 1,
+                borderColor: '#86EFAC',
+                borderRadius: 6,
+                marginRight: 8,
+                marginBottom: 4,
+              }}>
+                <Text style={{ fontSize: 12, color: '#065F46' }}>
+                  {cartItem.quantity}x {cartItem.name}
+                </Text>
+              </View>
+            ))}
           </View>
         </View>
+      )}
+
+      {/* Selected Indicator Only */}
+      {customizationData && Object.keys(selectedCustomizations).length > 0 && (
+        <View style={{ marginTop: 8, marginBottom: 8 }}>
+          <View style={{ 
+            paddingHorizontal: 12, 
+            paddingVertical: 4, 
+            backgroundColor: '#F3E8FF', 
+            borderWidth: 1,
+            borderColor: '#C4B5FD',
+            borderRadius: 8,
+            alignSelf: 'flex-start',
+          }}>
+            <Text style={{ fontSize: 12, color: '#6B21A8', fontWeight: '500' }}>
+              Selected
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Bottom Row: Quantity Controls in bottom-right */}
+      <View style={{ 
+        flexDirection: 'row', 
+        justifyContent: 'flex-end', 
+        alignItems: 'center',
+        marginTop: 8,
+      }}>
+        <TouchableOpacity
+          onPress={() => removeFromCart(item)}
+          style={{ 
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: '#F5F5F5',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: '#E5E5E5',
+          }}
+        >
+          <Icon.Minus strokeWidth={2.5} height={18} width={18} stroke={themeColors.purple} />
+        </TouchableOpacity>
+
+        <Text style={{ 
+          paddingHorizontal: 12,
+          fontSize: 17,
+          fontWeight: '600',
+          color: '#000000',
+        }}>
+          {totalQuantity}
+        </Text>
+
+        <TouchableOpacity
+          onPress={() => {
+            if (customizationData && Object.keys(customizations).length > 0) {
+              // Clear selections and show fresh customization modal
+              setSelectedCustomizations({});
+              setShowCustomizationModal(true);
+            } else {
+              // Add to cart directly if no customizations
+              addToCart({ 
+                ...item, 
+                name: item?.dish_name,
+                price: parseFloat(totalPrice), 
+                customizations: selectedCustomizations,
+                option: null 
+              }, restaurant);
+            }
+          }}
+          style={{ 
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: '#F5F5F5',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: '#E5E5E5',
+          }}
+        >
+          <Icon.Plus strokeWidth={2.5} height={18} width={18} stroke={themeColors.purple} />
+        </TouchableOpacity>
       </View>
       
       {/* Customization Modal */}

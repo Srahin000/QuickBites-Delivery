@@ -14,8 +14,9 @@ import { themeColors } from '../theme';
 import * as Icon from 'react-native-feather';
 import supabase from '../supabaseClient';
 
-const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
+const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId, timeOverride = false }) => {
   const [timeSlots, setTimeSlots] = useState([]);
+  const [groupedWindows, setGroupedWindows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedTime, setSelectedTime] = useState(null);
 
@@ -26,8 +27,8 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
   // Use the actual current day instead of hardcoded Monday
   const currentDay = todayDay;
   
-  // Check if today is a delivery day (weekdays)
-  const isDeliveryDay = today.getDay() >= 1 && today.getDay() <= 5;
+  // Check if today is a delivery day (weekdays) - but override if timeOverride is enabled
+  const isDeliveryDay = timeOverride || (today.getDay() >= 1 && today.getDay() <= 5);
 
   useEffect(() => {
     if (visible) {
@@ -38,11 +39,12 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
   const fetchTimeSlots = async () => {
     setLoading(true);
     try {
-      // Fetch time slots for the current day
+      console.log(`[TimeSlotModal] Querying for day: "${currentDay}"`);
+      
+      // Fetch time slots for the current day (try with TRIM to handle trailing spaces)
       const { data, error } = await supabase
         .from('delivery_times')
         .select('*')
-        .eq('day', currentDay)
         .order('hours', { ascending: true });
 
       if (error) {
@@ -51,12 +53,27 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
         return;
       }
 
+      console.log(`[TimeSlotModal] Total slots in database: ${data?.length || 0}`);
+      
+      // Filter for current day (with trim to handle spaces)
+      let todaySlots = (data || []).filter(slot => slot.day.trim() === currentDay);
+      // Only show slots that have at least one deliverer assigned (rider-powered availability)
+      todaySlots = todaySlots.filter(slot => (slot.max_capacity_lu ?? 0) > 0);
+      console.log(`[TimeSlotModal] Slots for ${currentDay} (with deliverer): ${todaySlots.length}`);
+      
+      if (todaySlots.length === 0) {
+        console.log('[TimeSlotModal] ⚠️ No slots found for today!');
+        console.log('[TimeSlotModal] Available days in database:', [...new Set(data.map(s => `"${s.day}"`))].join(', '));
+      }
+
       // Filter out past time slots for today
       const currentTime = new Date();
       const currentHour = currentTime.getHours();
       const currentMinute = currentTime.getMinutes();
       
-      const availableSlots = (data || []).filter(slot => {
+      console.log(`[TimeSlotModal] Current time: ${currentHour}:${currentMinute.toString().padStart(2, '0')} (${currentHour * 60 + currentMinute} minutes from midnight)`);
+      
+      const availableSlots = todaySlots.filter(slot => {
         // Use the hours, minutes, ampm columns
         let hour = parseInt(slot.hours);
         const minute = slot.minutes ? parseInt(slot.minutes) : 0;
@@ -74,12 +91,63 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
         const currentMinutes = currentHour * 60 + currentMinute;
         const timeDifference = slotMinutes - currentMinutes;
         
+        console.log(`[TimeSlotModal] Slot: ${slot.hours}:${minute.toString().padStart(2, '0')} ${slot.ampm} → 24h: ${hour}:${minute.toString().padStart(2, '0')} (${slotMinutes} min from midnight) - Diff: ${timeDifference} min`);
+        
+        // Filter out past times (negative time difference)
+        if (timeDifference < 0) {
+          console.log(`[TimeSlotModal] ❌ Filtered: Past time`);
+          return false;
+        }
+        
         // Hide slots that are less than 1 hour and 45 minutes away (105 minutes)
-        // Example: If current time is 2:15 PM and slot is 3:00 PM (45 min away), hide it
-        // But if current time is 1:30 PM and slot is 3:00 PM (90 min away), show it
-        return timeDifference >= 105; // 105 minutes = 1 hour 45 minutes
+        const shouldShow = timeDifference >= 105; // 105 minutes = 1 hour 45 minutes
+        console.log(`[TimeSlotModal] ${shouldShow ? '✅' : '❌'} ${shouldShow ? 'AVAILABLE' : 'Too soon'} (need 105 min buffer, have ${timeDifference} min)`);
+        
+        return shouldShow;
       });
+      
+      console.log(`[TimeSlotModal] 📊 Summary: ${todaySlots.length} total today → ${availableSlots.length} available after filtering`);
       setTimeSlots(availableSlots);
+      
+      // Group slots by customer_window_label for customer-facing hourly view
+      const grouped = {};
+      availableSlots.forEach(slot => {
+        const label = slot.customer_window_label || `${slot.hours}:${(slot.minutes || 0).toString().padStart(2, '0')} ${slot.ampm}`;
+        if (!grouped[label]) {
+          grouped[label] = {
+            label,
+            slots: [],
+            earliestSlot: slot,
+            totalCapacity: 0,
+            currentLoad: 0
+          };
+        }
+        grouped[label].slots.push(slot);
+        grouped[label].totalCapacity += (slot.max_capacity_lu || 0);
+        grouped[label].currentLoad += (slot.current_load_lu || 0);
+      });
+      
+      // Convert to array and sort by earliest slot time
+      const windowsArray = Object.values(grouped).sort((a, b) => {
+        const aSlot = a.earliestSlot;
+        const bSlot = b.earliestSlot;
+        let aHour = parseInt(aSlot.hours);
+        let bHour = parseInt(bSlot.hours);
+        const aMinute = parseInt(aSlot.minutes || 0);
+        const bMinute = parseInt(bSlot.minutes || 0);
+        
+        if (aSlot.ampm === 'PM' && aHour !== 12) aHour += 12;
+        if (bSlot.ampm === 'PM' && bHour !== 12) bHour += 12;
+        if (aSlot.ampm === 'AM' && aHour === 12) aHour = 0;
+        if (bSlot.ampm === 'AM' && bHour === 12) bHour = 0;
+        
+        const aTotal = aHour * 60 + aMinute;
+        const bTotal = bHour * 60 + bMinute;
+        return aTotal - bTotal;
+      });
+      
+      console.log(`[TimeSlotModal] 📊 Grouped into ${windowsArray.length} customer windows`);
+      setGroupedWindows(windowsArray);
     } catch (error) {
       console.error('Error fetching time slots:', error);
       Alert.alert('Error', 'Something went wrong while loading time slots');
@@ -88,12 +156,10 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
     }
   };
 
-  const handleTimeSelect = (timeSlot) => {
-    if (timeSlot.counter >= 10) {
-      Alert.alert('Slot Full', 'This time slot is currently full. Please select another time.');
-      return;
-    }
-    setSelectedTime(timeSlot);
+  const handleTimeSelect = (window) => {
+    // Store the customer window label, not a specific slot
+    // The backend will assign to earliest available slot within this window
+    setSelectedTime(window);
   };
 
   const handleConfirm = async () => {
@@ -101,15 +167,16 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
       Alert.alert('No Time Selected', 'Please select a delivery time');
       return;
     }
-
-    try {
-      // Just call the callback with selected time - counter will be incremented after payment
-      onTimeSelected(selectedTime);
-      onClose();
-    } catch (error) {
-      console.error('Error confirming time slot:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
-    }
+    
+    // Pass the customer window back to parent
+    // The parent/backend will find earliest slot within this window
+    onTimeSelected({
+      customerWindowLabel: selectedTime.label,
+      earliestSlot: selectedTime.earliestSlot, // For display purposes
+      availableCapacity: selectedTime.totalCapacity - selectedTime.currentLoad
+    });
+    setSelectedTime(null);
+    onClose();
   };
 
   const formatTime = (timeSlot) => {
@@ -119,24 +186,28 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
     return `${hour}:${minute} ${ampm}`;
   };
 
-  const getSlotStatus = (timeSlot) => {
-    if (timeSlot.counter >= 10) {
+  const getWindowStatus = (window) => {
+    const availableCapacity = window.totalCapacity - window.currentLoad;
+    const utilizationPercent = (window.currentLoad / window.totalCapacity) * 100;
+    
+    if (availableCapacity <= 0 || window.totalCapacity === 0) {
       return { status: 'full', color: '#EF4444', text: 'Full' };
-    } else if (timeSlot.counter >= 8) {
+    } else if (utilizationPercent >= 75) {
       return { status: 'almost-full', color: '#F59E0B', text: 'Almost Full' };
     } else {
       return { status: 'available', color: '#10B981', text: 'Available' };
     }
   };
 
-  const renderTimeSlot = ({ item }) => {
-    const slotStatus = getSlotStatus(item);
-    const isSelected = selectedTime?.id === item.id;
-    const isDisabled = item.counter >= 10;
+  const renderTimeWindow = ({ item: window }) => {
+    const windowStatus = getWindowStatus(window);
+    const isSelected = selectedTime?.label === window.label;
+    const isDisabled = (window.totalCapacity - window.currentLoad) <= 0;
+    const availableCapacity = window.totalCapacity - window.currentLoad;
 
     return (
       <TouchableOpacity
-        onPress={() => handleTimeSelect(item)}
+        onPress={() => handleTimeSelect(window)}
         disabled={isDisabled}
         style={[
           styles.timeSlot,
@@ -151,10 +222,10 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
               isSelected && styles.selectedTimeText,
               isDisabled && styles.disabledTimeText
             ]}>
-              {formatTime(item)}
+              {window.label}
             </Text>
-            <View style={[styles.statusBadge, { backgroundColor: slotStatus.color }]}>
-              <Text style={styles.statusText}>{slotStatus.text}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: windowStatus.color }]}>
+              <Text style={styles.statusText}>{windowStatus.text}</Text>
             </View>
           </View>
           <View style={styles.counterInfo}>
@@ -163,7 +234,7 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
               isSelected && styles.selectedCounterText,
               isDisabled && styles.disabledCounterText
             ]}>
-              {item.counter}/10 orders
+              {window.slots.length} slot{window.slots.length !== 1 ? 's' : ''} • {availableCapacity.toFixed(1)} LU available
             </Text>
           </View>
         </View>
@@ -218,7 +289,7 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
               {'\n'}Please check back on {currentDay} for available time slots.
             </Text>
           </View>
-        ) : timeSlots.length === 0 ? (
+        ) : groupedWindows.length === 0 ? (
           <View style={styles.noDeliveryContainer}>
             <Icon.Clock size={64} color="#9CA3AF" />
             <Text style={styles.noDeliveryTitle}>No Time Slots Available</Text>
@@ -228,13 +299,21 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
             </Text>
           </View>
         ) : (
-          <FlatList
-            data={timeSlots}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderTimeSlot}
-            contentContainerStyle={styles.timeSlotsList}
-            showsVerticalScrollIndicator={false}
-          />
+          <>
+            <View style={styles.disclaimerBox}>
+              <Icon.Info size={16} color="#6366F1" />
+              <Text style={styles.disclaimerText}>
+                Orders are scheduled within this hourly window and may arrive earlier depending on driver availability.
+              </Text>
+            </View>
+            <FlatList
+              data={groupedWindows}
+              keyExtractor={(item) => item.label}
+              renderItem={renderTimeWindow}
+              contentContainerStyle={styles.timeSlotsList}
+              showsVerticalScrollIndicator={false}
+            />
+          </>
         )}
 
         {/* Confirm Button */}
@@ -251,7 +330,7 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId }) => {
               styles.confirmButtonText,
               (!selectedTime || !isDeliveryDay) && styles.disabledConfirmButtonText
             ]}>
-              {!isDeliveryDay ? 'No deliveries today' : selectedTime ? `Confirm ${formatTime(selectedTime)}` : 'Select a time'}
+              {!isDeliveryDay ? 'No deliveries today' : selectedTime ? `Confirm ${selectedTime.label}` : 'Select a time'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -424,6 +503,22 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  disclaimerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    gap: 8,
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#4F46E5',
+    lineHeight: 16,
   },
 });
 

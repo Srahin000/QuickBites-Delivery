@@ -111,9 +111,9 @@ export default function AddRestaurant({ onAddRestaurant }) {
         image_url: publicImageUrl,
         reviews: 0,
         ratings: 0,
+        active: true,
       };
 
-      // Insert into restaurant_master first
       const { data: insertedRestaurant, error: insertError } = await supabase
         .from('restaurant_master')
         .insert([newRestaurant])
@@ -123,15 +123,6 @@ export default function AddRestaurant({ onAddRestaurant }) {
       if (insertError) {
         console.error("Error inserting restaurant:", insertError);
         return;
-      }
-
-      // Then add to beta_restaurant table
-      const { error: betaError } = await supabase
-        .from('beta_restaurant')
-        .insert([{ restaurant_id: insertedRestaurant.restaurant_id }]);
-
-      if (betaError) {
-        console.error("Error adding to beta restaurants:", betaError);
       }
 
       if (onAddRestaurant) {

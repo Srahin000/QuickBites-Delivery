@@ -338,7 +338,10 @@ export default function DeliveryScreen() {
           <View className="space-y-3">
             <TouchableOpacity
               onPress={() => {
-                navigation.navigate('MainTabs', { screen: 'Orders' });
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'MainTabs', params: { screen: 'Orders' } }],
+                });
               }}
               className="bg-primary rounded-2xl p-4 shadow-sm"
             >

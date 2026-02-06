@@ -184,6 +184,7 @@ export default function HomeScreen() {
           {/* 👤 Profile Button */}
           <TouchableOpacity
             onPress={() => navigation.navigate('ProfileScreen')}
+            style={{ minWidth: 48, minHeight: 48 }}
             className="w-12 h-12 rounded-full bg-white border border-gray-300 shadow-sm items-center justify-center"
           >
             <Icon.User height="24" width="24" stroke={themeColors.bgColor2} />
@@ -195,9 +196,9 @@ export default function HomeScreen() {
           <Animated.View 
             style={activeOrderStyle}
             entering={FadeInDown.delay(300).springify()}
-            className="mx-4 mb-4"
+            className="mx-4 mb-2"
           >
-            <View className={`rounded-2xl p-4 shadow-lg ${
+            <View className={`rounded-2xl pt-4 px-4 pb-3 shadow-lg ${
               activeOrder.order_status?.status === 'ready to pickup' 
                 ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
                 : 'bg-gradient-to-r from-orange-400 to-red-500'
@@ -242,7 +243,7 @@ export default function HomeScreen() {
               </View>
               <TouchableOpacity
                 onPress={() => navigation.navigate('MainTabs', { screen: 'Orders' })}
-                className="bg-white/20 rounded-xl p-3 mt-3"
+                className="bg-white/20 rounded-xl py-2.5 px-3 mt-3"
               >
                 <Text className="text-white text-center font-semibold">
                   {activeOrder.order_status?.status === 'ready to pickup' 
@@ -271,6 +272,8 @@ export default function HomeScreen() {
               category={null} 
               searchQuery={searchQuery} 
               hasActiveOrder={hasActiveOrder}
+              refreshTrigger={refreshing}
+              onRefreshDone={() => setRefreshing(false)}
             />
             </Animated.View>
           </>

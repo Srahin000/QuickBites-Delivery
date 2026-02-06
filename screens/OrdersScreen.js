@@ -153,22 +153,7 @@ export default function OrdersScreen() {
             <Text className="text-2xl font-bold text-white mb-2">Your Orders</Text>
             <Text className="text-white/80 text-sm">Track your food delivery</Text>
           </View>
-          <TouchableOpacity
-            onPress={onRefresh}
-            disabled={refreshing}
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              padding: 8,
-              borderRadius: 8,
-              opacity: refreshing ? 0.6 : 1
-            }}
-          >
-            <Icon.RefreshCcw 
-              size={20} 
-              color="white" 
-              style={{ transform: [{ rotate: refreshing ? '180deg' : '0deg' }] }}
-            />
-          </TouchableOpacity>
+          <View style={{ width: 40 }} />
         </View>
         
         {/* Tab Navigation */}

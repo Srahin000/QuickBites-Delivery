@@ -77,7 +77,9 @@ serve(async (req) => {
       userId: user.id,
       userEmail: user.email,
       amountProvided: amount,
+      amountInDollars: typeof amount === 'number' ? (amount / 100).toFixed(2) : 'N/A',
       totalProvided: total,
+      totalInDollars: typeof total === 'number' ? total.toFixed(2) : 'N/A',
       orderCode,
       restaurant: restaurant?.name,
       cartItemsCount: cartItems?.length || 0,
@@ -89,17 +91,74 @@ serve(async (req) => {
       typeof amount === 'number' ? amount :
       (typeof total === 'number' ? Math.round(total * 100) : null);
 
+    console.log('💰 Payment Intent Amount Calculation:', {
+      amountProvided: amount,
+      totalProvided: total,
+      finalAmount: finalAmount,
+      finalAmountInDollars: typeof finalAmount === 'number' ? (finalAmount / 100).toFixed(2) : 'N/A'
+    });
+
     if (!Number.isInteger(finalAmount) || (finalAmount as number) <= 0) {
+      console.error('❌ Invalid amount:', { finalAmount, amount, total });
       return new Response(
         JSON.stringify({ error: 'Invalid amount (must be integer cents)' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create a PaymentIntent with Apple Pay support
+    // Get or create Stripe customer for this user
+    let customerId = null;
+    try {
+      // Fetch existing Stripe customer ID from database
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('stripe_customer_id')
+        .eq('id', user.id)
+        .single();
+
+      if (userError && userError.code !== 'PGRST116') {
+        console.error('Error fetching user data:', userError);
+      }
+
+      customerId = userData?.stripe_customer_id;
+
+      // Create Stripe customer if doesn't exist
+      if (!customerId) {
+        console.log('Creating new Stripe customer for user:', user.id);
+        const customer = await stripe.customers.create({
+          email: user.email || undefined,
+          metadata: {
+            supabase_user_id: user.id,
+            created_from: 'payment_intent'
+          }
+        });
+        customerId = customer.id;
+        console.log('Created Stripe customer:', customerId);
+
+        // Save customer ID to database
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ stripe_customer_id: customerId })
+          .eq('id', user.id);
+
+        if (updateError) {
+          console.error('Error saving Stripe customer ID:', updateError);
+          // Continue anyway - payment can still work
+        }
+      } else {
+        console.log('Using existing Stripe customer:', customerId);
+      }
+    } catch (customerError) {
+      console.error('Error managing Stripe customer:', customerError);
+      // Continue without customer ID - payment will still work, just won't save card
+    }
+
+    // Create a PaymentIntent with Apple Pay support and card saving
     const paymentIntentConfig: any = {
       amount: finalAmount as number,
       currency: currency || 'usd',
+      customer: customerId || undefined, // Link to customer for card saving
+      setup_future_usage: customerId ? 'off_session' : undefined, // Save card for future use
       metadata: {
         order_code: orderCode?.toString() || 'unknown',
         restaurant_name: restaurant?.name || 'Unknown',
@@ -117,7 +176,7 @@ serve(async (req) => {
       },
     };
 
-    // Use automatic payment methods (includes Apple Pay via card)
+  
     paymentIntentConfig.automatic_payment_methods = { 
       enabled: true,
       allow_redirects: 'never' // Prevents redirect-based payment methods
