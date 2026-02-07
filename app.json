@@ -4,7 +4,7 @@
     "slug": "quickbites",
     "scheme": "com.srahin000.quickbites",
     "deepLinkScheme": "com.srahin000.quickbites",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/image.png",
     "userInterfaceStyle": "light",
@@ -107,7 +107,7 @@
         "projectId": "444ed843-9ec5-4779-8b4a-45817fd22e20"
       }
     },
-    "runtimeVersion": "1.0.2",
+    "runtimeVersion": "1.0.3",
     "updates": {
       "url": "https://u.expo.dev/444ed843-9ec5-4779-8b4a-45817fd22e20"
     }
