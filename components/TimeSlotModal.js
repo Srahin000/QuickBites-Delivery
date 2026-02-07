@@ -32,6 +32,7 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId, timeOve
 
   useEffect(() => {
     if (visible) {
+      setSelectedTime(null); // Clear any previous selection when modal opens
       fetchTimeSlots();
     }
   }, [visible]);
@@ -168,12 +169,34 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId, timeOve
       return;
     }
     
+    // Validate that the selected time is still available
+    const stillAvailable = groupedWindows.find(w => w.label === selectedTime.label);
+    if (!stillAvailable) {
+      Alert.alert(
+        'Time Slot No Longer Available', 
+        'This time slot is no longer available. Please select a different time.'
+      );
+      setSelectedTime(null);
+      return;
+    }
+    
+    // Check if the window still has capacity
+    const availableCapacity = stillAvailable.totalCapacity - stillAvailable.currentLoad;
+    if (availableCapacity <= 0 || stillAvailable.totalCapacity === 0) {
+      Alert.alert(
+        'Time Slot Full', 
+        'This time slot is now full. Please select a different time.'
+      );
+      setSelectedTime(null);
+      return;
+    }
+    
     // Pass the customer window back to parent
     // The parent/backend will find earliest slot within this window
     onTimeSelected({
       customerWindowLabel: selectedTime.label,
       earliestSlot: selectedTime.earliestSlot, // For display purposes
-      availableCapacity: selectedTime.totalCapacity - selectedTime.currentLoad
+      availableCapacity: availableCapacity
     });
     setSelectedTime(null);
     onClose();

@@ -13,13 +13,18 @@ export default function DeliveryScreen() {
   const cartItems = params?.cartItems || [];
   const totalAmount = params?.totalAmount || 0;
   const subtotal = params?.subtotal || 0;
-  const deliveryFee = params?.deliveryFee || 5;
+  const deliveryFee = params?.deliveryFee || 0;
   const orderCode = params?.orderCode;
   const selectedLocation = params?.selectedLocation;
   const selectedTimeSlot = params?.selectedTimeSlot;
+  const totalLoadUnit = params?.totalLoadUnit || 0;
   const [orderStatus, setOrderStatus] = useState('submitted');
   const [pickupCode, setPickupCode] = useState(null);
   const [deliveryTimeInfo, setDeliveryTimeInfo] = useState(null);
+
+  // Determine order type based on delivery fee
+  const isDelivery = deliveryFee > 0;
+  const isSplitDelivery = totalLoadUnit > 20 || (deliveryFee > 0 && totalLoadUnit > 15);
 
   const tax = 0.08875 * subtotal;
 
@@ -130,10 +135,22 @@ export default function DeliveryScreen() {
       case 'submitted': return 'Order Submitted';
       case 'processing': return 'Processing';
       case 'preparing': return 'Preparing';
-      case 'ready': return 'Ready for Pickup';
+      case 'ready': return isDelivery ? 'Out for Delivery' : 'Ready for Pickup';
       case 'delivered': return 'Delivered';
       default: return 'Order Submitted';
     }
+  };
+
+  const getStepStatus = (stepIndex) => {
+    const statusMap = {
+      'submitted': 0,
+      'processing': 1,
+      'preparing': 1,
+      'ready': 2,
+      'delivered': 3
+    };
+    const currentStep = statusMap[orderStatus] || 0;
+    return stepIndex <= currentStep ? 'active' : 'inactive';
   };
 
   if (!restaurant) {
@@ -172,7 +189,7 @@ export default function DeliveryScreen() {
           </View>
         </Animated.View>
 
-        {/* Order Status */}
+        {/* Order Status - Step Tracker */}
         <Animated.View 
           style={{ 
             opacity: fadeAnim,
@@ -180,34 +197,152 @@ export default function DeliveryScreen() {
           }}
           className="mx-6 mb-4"
         >
-          <View className="bg-gray-50 rounded-2xl p-3">
-            <View className="flex-row items-center justify-between mb-3">
+          <View className="bg-gray-50 rounded-2xl p-4">
+            <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-semibold text-gray-800">Order Status</Text>
               <View 
                 className="px-3 py-1 rounded-full"
                 style={{ backgroundColor: getStatusColor(orderStatus) + '20' }}
               >
                 <Text 
-                  className="font-semibold"
+                  className="font-semibold text-sm"
                   style={{ color: getStatusColor(orderStatus) }}
                 >
                   {getStatusText(orderStatus)}
                 </Text>
               </View>
             </View>
-            <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <View 
-                className="h-full rounded-full"
-                style={{ 
-                  backgroundColor: getStatusColor(orderStatus),
-                  width: '25%' // 25% for submitted status
-                }}
-              />
+            
+            {/* Step Tracker */}
+            <View className="flex-row items-center justify-between">
+              {/* Step 1: Order Confirmed */}
+              <View className="items-center flex-1">
+                <View 
+                  className="w-12 h-12 rounded-full items-center justify-center mb-2"
+                  style={{ 
+                    backgroundColor: getStepStatus(0) === 'active' ? themeColors.purple : '#E5E7EB'
+                  }}
+                >
+                  <Icon.FileText 
+                    size={20} 
+                    color={getStepStatus(0) === 'active' ? 'white' : '#9CA3AF'} 
+                  />
+                </View>
+                <Text 
+                  className="text-xs text-center font-medium"
+                  style={{ color: getStepStatus(0) === 'active' ? '#374151' : '#9CA3AF' }}
+                >
+                  Confirmed
+                </Text>
+              </View>
+
+              {/* Connecting Line */}
+              <View className="h-0.5 flex-1 mx-2" style={{ backgroundColor: getStepStatus(1) === 'active' ? themeColors.purple : '#E5E7EB' }} />
+
+              {/* Step 2: Preparing */}
+              <View className="items-center flex-1">
+                <View 
+                  className="w-12 h-12 rounded-full items-center justify-center mb-2"
+                  style={{ 
+                    backgroundColor: getStepStatus(1) === 'active' ? themeColors.purple : '#E5E7EB'
+                  }}
+                >
+                  <Icon.Coffee 
+                    size={20} 
+                    color={getStepStatus(1) === 'active' ? 'white' : '#9CA3AF'} 
+                  />
+                </View>
+                <Text 
+                  className="text-xs text-center font-medium"
+                  style={{ color: getStepStatus(1) === 'active' ? '#374151' : '#9CA3AF' }}
+                >
+                  Preparing
+                </Text>
+              </View>
+
+              {/* Connecting Line */}
+              <View className="h-0.5 flex-1 mx-2" style={{ backgroundColor: getStepStatus(2) === 'active' ? themeColors.purple : '#E5E7EB' }} />
+
+              {/* Step 3: On the Way / Ready */}
+              <View className="items-center flex-1">
+                <View 
+                  className="w-12 h-12 rounded-full items-center justify-center mb-2"
+                  style={{ 
+                    backgroundColor: getStepStatus(2) === 'active' ? themeColors.purple : '#E5E7EB'
+                  }}
+                >
+                  <Icon.Truck 
+                    size={20} 
+                    color={getStepStatus(2) === 'active' ? 'white' : '#9CA3AF'} 
+                  />
+                </View>
+                <Text 
+                  className="text-xs text-center font-medium"
+                  style={{ color: getStepStatus(2) === 'active' ? '#374151' : '#9CA3AF' }}
+                >
+                  {isDelivery ? 'On the Way' : 'Ready'}
+                </Text>
+              </View>
+
+              {/* Connecting Line */}
+              <View className="h-0.5 flex-1 mx-2" style={{ backgroundColor: getStepStatus(3) === 'active' ? themeColors.purple : '#E5E7EB' }} />
+
+              {/* Step 4: Delivered */}
+              <View className="items-center flex-1">
+                <View 
+                  className="w-12 h-12 rounded-full items-center justify-center mb-2"
+                  style={{ 
+                    backgroundColor: getStepStatus(3) === 'active' ? themeColors.purple : '#E5E7EB'
+                  }}
+                >
+                  <Icon.MapPin 
+                    size={20} 
+                    color={getStepStatus(3) === 'active' ? 'white' : '#9CA3AF'} 
+                  />
+                </View>
+                <Text 
+                  className="text-xs text-center font-medium"
+                  style={{ color: getStepStatus(3) === 'active' ? '#374151' : '#9CA3AF' }}
+                >
+                  Delivered
+                </Text>
+              </View>
             </View>
           </View>
         </Animated.View>
 
-        {/* Pickup Information */}
+        {/* Feast Mode Indicator */}
+        {isSplitDelivery && (
+          <Animated.View 
+            style={{ 
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }}
+            className="mx-6 mb-4"
+          >
+            <View 
+              className="rounded-2xl p-4 border-2"
+              style={{ 
+                backgroundColor: '#EEF2FF',
+                borderColor: '#A5B4FC'
+              }}
+            >
+              <View className="flex-row items-center mb-2">
+                <View className="bg-indigo-500 rounded-full p-2 mr-3">
+                  <Icon.Package size={20} color="white" />
+                </View>
+                <Text className="text-lg font-bold" style={{ color: '#4F46E5' }}>
+                  Feast Mode Active
+                </Text>
+              </View>
+              <Text className="text-sm text-gray-700 leading-5">
+                We've assigned multiple riders to ensure your large order arrives safe and hot. This premium service ensures everything reaches you perfectly.
+              </Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Delivery/Pickup Information */}
         <Animated.View 
           style={{ 
             opacity: fadeAnim,
@@ -216,12 +351,16 @@ export default function DeliveryScreen() {
           className="mx-6 mb-4"
         >
           <View className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-            <Text className="text-xl font-bold text-gray-800 mb-3">Pickup Information</Text>
+            <Text className="text-xl font-bold text-gray-800 mb-3">
+              {isDelivery ? 'Delivery Information' : 'Pickup Information'}
+            </Text>
             
             <View className="mb-3">
               <View className="flex-row items-center mb-2">
                 <Icon.MapPin size={20} color="#6B7280" />
-                <Text className="text-gray-600 ml-2 font-medium">Pickup Location</Text>
+                <Text className="text-gray-600 ml-2 font-medium">
+                  {isDelivery ? 'Delivering To' : 'Pickup Location'}
+                </Text>
               </View>
               <Text className="text-gray-800 text-lg font-semibold">
                 {selectedLocation?.location || "Main Entrance - City College"}
@@ -236,29 +375,47 @@ export default function DeliveryScreen() {
             <View className="mb-3">
               <View className="flex-row items-center mb-2">
                 <Icon.Clock size={20} color="#6B7280" />
-                <Text className="text-gray-600 ml-2 font-medium">Ready By</Text>
+                <Text className="text-gray-600 ml-2 font-medium">
+                  {isDelivery ? 'Estimated Arrival' : 'Ready By'}
+                </Text>
               </View>
               <Text className="text-gray-800 text-lg font-semibold">
                 {getDisplayTime()}
               </Text>
             </View>
 
-            <View className="mb-3">
+            {/* Security Code */}
+            <View>
               <View className="flex-row items-center mb-2">
-                <Icon.Hash size={20} color="#6B7280" />
-                <Text className="text-gray-600 ml-2 font-medium">Pickup Code</Text>
+                <Icon.Shield size={20} color="#6B7280" />
+                <Text className="text-gray-600 ml-2 font-medium">
+                  {isDelivery ? 'Handoff Code' : 'Pickup Code'}
+                </Text>
               </View>
               <Animated.View 
-                style={{ transform: [{ scale: pulseAnim }] }}
-                className="bg-primary rounded-xl p-4 items-center"
+                className="rounded-xl p-4 items-center border-2"
+                style={{
+                  borderColor: themeColors.purple,
+                  transform: [{ scale: pulseAnim }],
+                  borderStyle: 'dashed',
+                  backgroundColor: '#FAFAFA'
+                }}
               >
-                <Text className="text-4xl font-bold text-white">
-                  {pickupCode}
-                </Text>
+                <View className="bg-white px-6 py-3 rounded-lg border border-gray-200">
+                  <Text className="text-xs text-gray-500 text-center mb-1 font-medium">
+                    SECURITY CODE
+                  </Text>
+                  <Text className="text-4xl font-bold text-center" style={{ color: themeColors.purple }}>
+                    {pickupCode}
+                  </Text>
+                </View>
               </Animated.View>
-              <Text className="text-gray-600 text-sm text-center mt-2">
-                Show this code when picking up your order
-              </Text>
+              <View className="flex-row items-center justify-center mt-3 px-4">
+                <Icon.Lock size={14} color="#9CA3AF" />
+                <Text className="text-gray-500 text-xs text-center ml-1" style={{ lineHeight: 16 }}>
+                  For your safety, only share this code when you {isDelivery ? 'meet your rider' : 'pick up your order'}
+                </Text>
+              </View>
             </View>
           </View>
         </Animated.View>

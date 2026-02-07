@@ -71,7 +71,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { cartItems, total, orderCode, restaurant, metadata, amount, currency } = body;
+    const { cartItems, total, orderCode, restaurant, metadata, amount, currency, customerWindowLabel, requiredLoad } = body;
 
     console.log('Creating payment intent for:', {
       userId: user.id,
@@ -83,7 +83,9 @@ serve(async (req) => {
       orderCode,
       restaurant: restaurant?.name,
       cartItemsCount: cartItems?.length || 0,
-      hasRestaurant: !!restaurant
+      hasRestaurant: !!restaurant,
+      customerWindowLabel,
+      requiredLoad
     });
 
     // Validate required fields - amount must be integer cents
@@ -153,6 +155,39 @@ serve(async (req) => {
       // Continue without customer ID - payment will still work, just won't save card
     }
 
+    // Find the best available slot within the customer's chosen window
+    let deliveryTimeId = null;
+    let assignedSlot = null;
+
+    if (customerWindowLabel && requiredLoad) {
+      try {
+        console.log('Finding available slot for customer window:', customerWindowLabel, 'with load:', requiredLoad);
+        
+        const { data: slotData, error: slotError } = await supabase
+          .rpc('find_next_available_slot_in_window', {
+            required_load: requiredLoad,
+            customer_window_label: customerWindowLabel
+          });
+
+        if (slotError) {
+          console.error('Error finding available slot:', slotError);
+        } else if (slotData) {
+          deliveryTimeId = slotData.id;
+          assignedSlot = slotData;
+          console.log('✅ Assigned to slot:', {
+            id: slotData.id,
+            time: slotData.estimated_time,
+            window: slotData.customer_window_label,
+            availableCapacity: slotData.available_capacity
+          });
+        } else {
+          console.warn('⚠️ No available slot found for window:', customerWindowLabel);
+        }
+      } catch (slotErr) {
+        console.error('Exception finding slot:', slotErr);
+      }
+    }
+
     // Create a PaymentIntent with Apple Pay support and card saving
     const paymentIntentConfig: any = {
       amount: finalAmount as number,
@@ -165,6 +200,9 @@ serve(async (req) => {
         user_id: user.id,
         user_email: user.email || 'unknown',
         app_version: '1.0.2',
+        delivery_time_id: deliveryTimeId?.toString() || 'unknown',
+        customer_window: customerWindowLabel || 'unknown',
+        assigned_slot_time: assignedSlot?.estimated_time || 'unknown',
         // Only include metadata fields that are under 500 characters
         ...(metadata && Object.keys(metadata).reduce((acc, key) => {
           const value = metadata[key];
@@ -190,6 +228,8 @@ serve(async (req) => {
       JSON.stringify({
         client_secret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
+        deliveryTimeId: deliveryTimeId,
+        assignedSlot: assignedSlot,
       }),
       {
         headers: { 

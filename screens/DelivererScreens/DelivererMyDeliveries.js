@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as Icon from 'react-native-feather';
 import supabase from "../../supabaseClient"
 import { themeColors } from '../../theme';
@@ -106,6 +106,13 @@ export default function DelivererMyDeliveries() {
   useEffect(() => {
     fetchOrders();
   }, [session?.user?.id]);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchOrders(true);
+    }, [session?.user?.id])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -219,15 +226,20 @@ export default function DelivererMyDeliveries() {
         <View style={{ width: 40 }} />
       </View>
       <View style={{ flex: 1, backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
-        {orders.length === 0 ? (
-          <Text style={{ color: themeColors.bgColor2, fontSize: 18 }}>No current deliveries.</Text>
-        ) : (
-          <FlatList
-            data={orders}
-            keyExtractor={(item, index) => `${item.type}-${index}`}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            renderItem={({ item }) => (
+        <FlatList
+          data={orders}
+          keyExtractor={(item, index) => `${item.type}-${index}`}
+          contentContainerStyle={{ paddingBottom: 20, flexGrow: 1 }}
+          scrollEnabled={true}
+          showsVerticalScrollIndicator={true}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColors.purple} />}
+          ListEmptyComponent={() => (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 }}>
+              <Text style={{ color: themeColors.bgColor2, fontSize: 18 }}>No current deliveries.</Text>
+              <Text style={{ color: '#999', fontSize: 14, marginTop: 8 }}>Pull down to refresh</Text>
+            </View>
+          )}
+          renderItem={({ item }) => (
               <View style={{ marginBottom: 20 }}>
                 {/* Restaurant Header */}
                 <View style={{ 
@@ -364,7 +376,6 @@ export default function DelivererMyDeliveries() {
               </View>
             )}
           />
-        )}
       </View>
     </SafeAreaView>
   );

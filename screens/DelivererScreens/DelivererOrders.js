@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { View, Text, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, ScrollView } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as Icon from 'react-native-feather';
 import supabase from "../../supabaseClient"
 import { themeColors } from '../../theme';
@@ -8,26 +8,28 @@ import { useSession } from '../../context/SessionContext-v2';
 import notificationService from '../../services/notificationService';
 
 export default function DelivererOrders() {
-  const [orders, setOrders] = useState([]);
+  const [activeTab, setActiveTab] = useState('available');
+  const [availableOrders, setAvailableOrders] = useState([]);
+  const [myOrders, setMyOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [accepting, setAccepting] = useState({});
   const { session } = useSession();
   const navigation = useNavigation();
 
-  const fetchOrders = async (isRefresh = false) => {
+  const fetchAvailableOrders = async (isRefresh = false) => {
     if (!isRefresh) {
       setLoading(true);
     }
     try {
-      // Fetch all unassigned orders (deliverer_id is null)
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select('id, order_code, restaurant_name, total, created_at, user_id')
         .is('deliverer_id', null);
+      
       if (orderError) throw orderError;
+      
       const userIds = orderData.map(order => order.user_id);
-      // Fetch customer names
       let userMap = {};
       if (userIds.length > 0) {
         const { data: usersData, error: usersError } = await supabase
@@ -37,32 +39,83 @@ export default function DelivererOrders() {
         if (usersError) throw usersError;
         usersData.forEach(u => { userMap[u.id] = u.first_name; });
       }
-      setOrders(orderData.map(order => ({
+      
+      setAvailableOrders(orderData.map(order => ({
         ...order,
         customerName: userMap[order.user_id] || 'Unknown',
       })));
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to fetch orders');
+      Alert.alert('Error', err.message || 'Failed to fetch available orders');
     } finally {
-      setLoading(false);
+      if (!isRefresh) setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const fetchMyOrders = async (isRefresh = false) => {
+    if (!isRefresh) {
+      setLoading(true);
+    }
+    try {
+      if (!session?.user?.id) return;
+      
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('id, order_code, restaurant_name, total, created_at, user_id')
+        .eq('deliverer_id', session.user.id);
+      
+      if (orderError) throw orderError;
+      
+      const userIds = orderData.map(order => order.user_id);
+      let userMap = {};
+      if (userIds.length > 0) {
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('id, first_name')
+          .in('id', userIds);
+        if (usersError) throw usersError;
+        usersData.forEach(u => { userMap[u.id] = u.first_name; });
+      }
+      
+      setMyOrders(orderData.map(order => ({
+        ...order,
+        customerName: userMap[order.user_id] || 'Unknown',
+      })));
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to fetch my orders');
+    } finally {
+      if (!isRefresh) setLoading(false);
       setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    fetchAvailableOrders();
+    fetchMyOrders();
+  }, [session?.user?.id]);
+
+  // Refresh when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchAvailableOrders(true);
+      fetchMyOrders(true);
+    }, [session?.user?.id])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchOrders(true);
+    if (activeTab === 'available') {
+      await fetchAvailableOrders(true);
+    } else {
+      await fetchMyOrders(true);
+    }
   };
 
   const handleAccept = async (orderId) => {
     if (!session?.user) return;
     setAccepting(prev => ({ ...prev, [orderId]: true }));
     try {
-      const acceptedOrder = orders.find(o => o.id === orderId);
+      const acceptedOrder = availableOrders.find(o => o.id === orderId);
       // Update deliverer_id in orders
       const { error } = await supabase
         .from('orders')
@@ -89,16 +142,16 @@ export default function DelivererOrders() {
         console.error('Error sending preparing notification:', notifErr);
       }
 
-      setOrders(prev => prev.filter(order => order.id !== orderId));
+      // Refresh both tabs after accepting
+      await fetchAvailableOrders(true);
+      await fetchMyOrders(true);
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to accept order');
     }
     setAccepting(prev => ({ ...prev, [orderId]: false }));
   };
 
-  const handleReject = (orderId) => {
-    setOrders(prev => prev.filter(order => order.id !== orderId));
-  };
+
 
   if (loading) {
     return (
@@ -110,47 +163,103 @@ export default function DelivererOrders() {
     );
   }
 
+  const currentOrders = activeTab === 'available' ? availableOrders : myOrders;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.bgColor2 }} edges={['bottom']}>
-      <View style={{ backgroundColor: themeColors.bgColor2, padding: 20, paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>Available Orders</Text>
-        <View style={{ width: 40 }} />
+      {/* Header */}
+      <View style={{ backgroundColor: themeColors.bgColor2, padding: 20, paddingTop: 12 }}>
+        <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>Orders</Text>
       </View>
+
+      {/* Tab Navigation */}
+      <View style={{ backgroundColor: themeColors.bgColor2, paddingHorizontal: 20, paddingBottom: 12, flexDirection: 'row', gap: 12 }}>
+        <TouchableOpacity
+          onPress={() => {
+            setActiveTab('available');
+            onRefresh();
+          }}
+          style={{
+            flex: 1,
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderRadius: 12,
+            backgroundColor: activeTab === 'available' ? 'white' : 'rgba(255,255,255,0.2)',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <Text style={{
+            color: activeTab === 'available' ? themeColors.purple : 'white',
+            fontWeight: activeTab === 'available' ? '700' : '600',
+            fontSize: 14
+          }}>
+            Available
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => {
+            setActiveTab('myorders');
+            onRefresh();
+          }}
+          style={{
+            flex: 1,
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderRadius: 12,
+            backgroundColor: activeTab === 'myorders' ? 'white' : 'rgba(255,255,255,0.2)',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <Text style={{
+            color: activeTab === 'myorders' ? themeColors.purple : 'white',
+            fontWeight: activeTab === 'myorders' ? '700' : '600',
+            fontSize: 14
+          }}>
+            My Orders
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Orders List */}
       <View style={{ flex: 1, backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
-        {orders.length === 0 ? (
-          <Text style={{ color: themeColors.bgColor2, fontSize: 18 }}>No available orders.</Text>
-        ) : (
-          <FlatList
-            data={orders}
-            keyExtractor={item => item.id.toString()}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            renderItem={({ item }) => (
+        <FlatList
+          data={currentOrders}
+          keyExtractor={item => item.id.toString()}
+          contentContainerStyle={{ paddingBottom: 20, flexGrow: 1 }}
+          scrollEnabled={true}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColors.purple} />}
+          ListEmptyComponent={() => (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 }}>
+              <Text style={{ color: themeColors.bgColor2, fontSize: 18 }}>
+                {activeTab === 'available' ? 'No available orders.' : 'No orders yet.'}
+              </Text>
+              <Text style={{ color: '#999', fontSize: 14, marginTop: 8 }}>
+                Pull down to refresh
+              </Text>
+            </View>
+          )}
+          renderItem={({ item }) => (
               <View style={{ backgroundColor: '#f7f7f7', borderRadius: 16, padding: 16, marginBottom: 16 }}>
                 <Text style={{ fontWeight: 'bold', fontSize: 16, color: themeColors.purple }}>Order #{item.order_code}</Text>
                 <Text style={{ color: '#333', marginTop: 4 }}>Customer: {item.customerName}</Text>
                 <Text style={{ color: '#333', marginTop: 2 }}>Restaurant: {item.restaurant_name}</Text>
                 <Text style={{ color: '#333', marginTop: 2 }}>Total: ${parseFloat(item.total).toFixed(2)}</Text>
                 <Text style={{ color: '#333', marginTop: 2 }}>Placed: {new Date(item.created_at).toLocaleString()}</Text>
-                <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                {activeTab === 'available' && (
                   <TouchableOpacity
                     onPress={() => handleAccept(item.id)}
                     disabled={accepting[item.id]}
-                    style={{ backgroundColor: themeColors.purple, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, marginRight: 12 }}
+                    style={{ backgroundColor: themeColors.purple, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, marginTop: 12, opacity: accepting[item.id] ? 0.6 : 1 }}
                   >
-                    <Text style={{ color: 'white', fontWeight: 'bold' }}>{accepting[item.id] ? 'Accepting...' : 'Accept'}</Text>
+                    <Text style={{ color: 'white', fontWeight: 'bold', textAlign: 'center' }}>{accepting[item.id] ? 'Accepting...' : 'Accept Order'}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleReject(item.id)}
-                    style={{ backgroundColor: '#eee', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 }}
-                  >
-                    <Text style={{ color: themeColors.purple, fontWeight: 'bold' }}>Reject</Text>
-                  </TouchableOpacity>
-                </View>
+                )}
               </View>
             )}
           />
-        )}
       </View>
     </SafeAreaView>
   );

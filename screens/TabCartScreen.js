@@ -918,6 +918,8 @@ export default function CartScreen() {
           amount: totalCents, // Send cents as integer
           currency: 'usd',
           orderCode: newOrderCode,
+          customerWindowLabel: selectedTimeSlot?.customerWindowLabel || null,
+          requiredLoad: cartLoad.totalScore,
           metadata: {
             order_type: 'apple_pay',
             user_id: session.user.id,
@@ -1178,6 +1180,59 @@ export default function CartScreen() {
 
     return () => clearTimeout(timer);
   }, [cartLoad.totalScore, cartItems.length, userHasManuallySelectedTime]);
+
+  // Check if selected slot has capacity for current cart load
+  useEffect(() => {
+    const checkSlotCapacity = async () => {
+      // Only check if we have a manually selected time slot
+      if (!selectedTimeSlot?.id || !userHasManuallySelectedTime) {
+        return;
+      }
+
+      if (cartItems.length === 0 || cartLoad.totalScore === 0) {
+        setIsShopFull(false);
+        setOrderBlockError(null);
+        return;
+      }
+
+      try {
+        // Fetch current slot data
+        const { data: slotData, error: slotError } = await supabase
+          .from('delivery_times')
+          .select('id, max_capacity_lu, current_load_lu')
+          .eq('id', selectedTimeSlot.id)
+          .single();
+
+        if (slotError) {
+          console.error('Error checking slot capacity:', slotError);
+          return;
+        }
+
+        if (!slotData || (slotData.max_capacity_lu ?? 0) <= 0) {
+          // Slot no longer available
+          setIsShopFull(true);
+          return;
+        }
+
+        const availableCapacity = (slotData.max_capacity_lu ?? 0) - (slotData.current_load_lu ?? 0);
+        
+        // Check if cart load fits in available capacity
+        if (cartLoad.totalScore > availableCapacity) {
+          setIsShopFull(true);
+        } else {
+          setIsShopFull(false);
+          // Clear the error if capacity is now sufficient
+          if (orderBlockError?.message?.includes('delivery time is no longer available')) {
+            setOrderBlockError(null);
+          }
+        }
+      } catch (err) {
+        console.error('Error in checkSlotCapacity:', err);
+      }
+    };
+
+    checkSlotCapacity();
+  }, [cartLoad.totalScore, selectedTimeSlot?.id, userHasManuallySelectedTime, cartItems.length]);
 
   // If cart becomes empty (Clear All or last-item minus), close any modal and go back to menu
   useEffect(() => {
@@ -1827,7 +1882,7 @@ export default function CartScreen() {
               </View>
 
           {/* Smart Delivery Estimate / Shop Full Warning */}
-          {cartItems.length > 0 && (
+          {cartItems.length > 0 && selectedTimeSlot && (
             <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
               {loadingSlot ? (
                 <View style={{ 
@@ -1871,6 +1926,56 @@ export default function CartScreen() {
                   }}>
                     All delivery slots are full. Please check back later or reduce your order size.
                   </Text>
+                </View>
+              ) : loadWarning?.level === 'heavy' ? (
+                <View style={{ 
+                  backgroundColor: loadWarning.bgColor,
+                  borderRadius: 12,
+                  padding: 16,
+                  borderLeftWidth: 4,
+                  borderLeftColor: loadWarning.color
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Icon.AlertTriangle size={20} color={loadWarning.color} />
+                    <Text style={{ 
+                      fontSize: 14, 
+                      fontWeight: '600', 
+                      color: loadWarning.color, 
+                      marginLeft: 8,
+                      flex: 1
+                    }}>
+                      {loadWarning.message}
+                    </Text>
+                  </View>
+                  <Text style={{ 
+                    fontSize: 12, 
+                    color: loadWarning.color, 
+                    marginTop: 6,
+                    opacity: 0.8
+                  }}>
+                    Your order requires multiple delivery trips. Items will arrive separately.
+                  </Text>
+                </View>
+              ) : loadWarning?.level === 'large' ? (
+                <View style={{ 
+                  backgroundColor: loadWarning.bgColor,
+                  borderRadius: 12,
+                  padding: 16,
+                  borderLeftWidth: 4,
+                  borderLeftColor: loadWarning.color
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Icon.AlertCircle size={20} color={loadWarning.color} />
+                    <Text style={{ 
+                      fontSize: 14, 
+                      fontWeight: '600', 
+                      color: loadWarning.color, 
+                      marginLeft: 8,
+                      flex: 1
+                    }}>
+                      {loadWarning.message}
+                    </Text>
+                  </View>
                 </View>
               ) : null}
             </View>
@@ -2086,7 +2191,14 @@ export default function CartScreen() {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                       },
-                      body: JSON.stringify({ cartItems, restaurant, total, orderCode: newOrderCode }),
+                      body: JSON.stringify({ 
+                        cartItems, 
+                        restaurant, 
+                        total, 
+                        orderCode: newOrderCode,
+                        customerWindowLabel: selectedTimeSlot?.customerWindowLabel || null,
+                        requiredLoad: cartLoad.totalScore
+                      }),
                     });
 
                     const data = await response.json();

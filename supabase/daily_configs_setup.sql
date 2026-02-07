@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS public.daily_configs (
   -- 4 trips/per_hour = 15-minute slots (rush)
   
   load_units_per_driver NUMERIC NOT NULL DEFAULT 20.0,
-  -- Each driver can carry 20 LU per slot (configurable)
+  -- Each driver can carry 20 LU per trip/slot (configurable)
   
   -- Customer Facing Configuration
   customer_interval_minutes INTEGER NOT NULL DEFAULT 60 CHECK (customer_interval_minutes IN (30, 60)),
@@ -47,7 +47,7 @@ INSERT INTO public.daily_configs (
 ) VALUES (
   CURRENT_DATE,
   4, -- 15-minute driver slots (rush mode)
-  20.0, -- 20 LU per driver
+  20.0, -- 20 LU per trip/slot
   60, -- Customers see hourly blocks
   105 -- 1h 45m buffer
 ) ON CONFLICT (config_date) DO NOTHING;
@@ -85,9 +85,9 @@ DECLARE
   minute_val INTEGER;
   am_pm TEXT;
 BEGIN
-  -- Round down to the nearest interval boundary
+  -- Round UP to the next interval boundary (so 11:59 PM becomes 12:00 AM next day)
   boundary_time := date_trunc('hour', slot_time) + 
-                   (FLOOR(EXTRACT(MINUTE FROM slot_time)::NUMERIC / interval_minutes) * interval_minutes) * INTERVAL '1 minute';
+                   (CEIL(EXTRACT(MINUTE FROM slot_time)::NUMERIC / interval_minutes) * interval_minutes) * INTERVAL '1 minute';
   
   -- Extract components for 12-hour format
   hour_12 := EXTRACT(HOUR FROM boundary_time)::INTEGER;
@@ -212,7 +212,7 @@ COMMENT ON FUNCTION public.generate_dynamic_slots IS
 -- =====================================================
 -- Function: Regenerate Delivery Times
 -- =====================================================
--- Clears and regenerates all delivery_times slots based on current config
+-- Updates and regenerates delivery_times slots while preserving driver assignments
 
 CREATE OR REPLACE FUNCTION public.regenerate_delivery_times(
   for_date DATE DEFAULT CURRENT_DATE
@@ -223,48 +223,115 @@ AS $$
 DECLARE
   slot_record RECORD;
   inserted_count INTEGER := 0;
+  updated_count INTEGER := 0;
+  existing_slot_id BIGINT;
+  config_record RECORD;
 BEGIN
-  -- Clear existing slots (optional - comment out to preserve capacity data)
-  -- DELETE FROM public.delivery_times;
+  -- Get configuration for the date
+  SELECT * INTO config_record
+  FROM public.daily_configs
+  WHERE config_date = for_date
+  LIMIT 1;
   
-  -- Or update existing slots if they exist
-  DELETE FROM public.delivery_times;
+  -- Use defaults if no config found
+  IF NOT FOUND THEN
+    config_record.load_units_per_driver := 20.0;
+  END IF;
   
-  -- Generate and insert new slots
-  FOR slot_record IN 
-    SELECT * FROM public.generate_dynamic_slots(for_date)
+  -- Create a temporary table to track which slots should exist
+  CREATE TEMP TABLE IF NOT EXISTS temp_new_slots (
+    day_name TEXT,
+    slot_hour INTEGER,
+    slot_minute INTEGER,
+    slot_period TEXT,
+    slot_timestamp TIMESTAMP,
+    customer_label TEXT,
+    processed BOOLEAN DEFAULT FALSE
+  ) ON COMMIT DROP;
+  
+  -- Clear temp table
+  DELETE FROM temp_new_slots;
+  
+  -- Insert all slots that should exist based on current config
+  INSERT INTO temp_new_slots (day_name, slot_hour, slot_minute, slot_period, slot_timestamp, customer_label)
+  SELECT * FROM public.generate_dynamic_slots(for_date);
+  
+  -- Update or insert slots
+  FOR slot_record IN SELECT * FROM temp_new_slots
   LOOP
-    INSERT INTO public.delivery_times (
-      day,
-      hours,
-      minutes,
-      period,
-      slot_timestamp,
-      customer_window_label,
-      counter,
-      current_load_lu,
-      max_capacity_lu
-    ) VALUES (
-      slot_record.day_name,
-      slot_record.slot_hour,
-      slot_record.slot_minute,
-      slot_record.slot_period,
-      slot_record.slot_timestamp,
-      slot_record.customer_label,
-      0, -- counter starts at 0
-      0, -- no load initially
-      0  -- capacity set to 0 until drivers assigned
-    ) ON CONFLICT DO NOTHING;
+    -- Try to find existing slot with matching day/time
+    SELECT id INTO existing_slot_id
+    FROM public.delivery_times
+    WHERE TRIM(day) = TRIM(slot_record.day_name)
+      AND hours = slot_record.slot_hour
+      AND COALESCE(minutes, 0) = slot_record.slot_minute
+      AND TRIM(ampm) = TRIM(slot_record.slot_period)
+    LIMIT 1;
     
-    inserted_count := inserted_count + 1;
+    IF existing_slot_id IS NOT NULL THEN
+      -- Update existing slot with new customer_window_label and slot_timestamp
+      UPDATE public.delivery_times
+      SET 
+        slot_timestamp = slot_record.slot_timestamp,
+        customer_window_label = slot_record.customer_label
+      WHERE id = existing_slot_id;
+      
+      updated_count := updated_count + 1;
+    ELSE
+      -- Insert new slot
+      INSERT INTO public.delivery_times (
+        day,
+        hours,
+        minutes,
+        ampm,
+        slot_timestamp,
+        customer_window_label,
+        counter,
+        current_load_lu,
+        max_capacity_lu
+      ) VALUES (
+        slot_record.day_name,
+        slot_record.slot_hour,
+        slot_record.slot_minute,
+        slot_record.slot_period,
+        slot_record.slot_timestamp,
+        slot_record.customer_label,
+        0,
+        0,
+        0
+      );
+      
+      inserted_count := inserted_count + 1;
+    END IF;
   END LOOP;
   
-  RETURN 'Successfully generated ' || inserted_count || ' delivery time slots';
+  -- Delete slots that shouldn't exist anymore (those not in temp_new_slots)
+  -- Only delete if they don't have any current load or active orders
+  DELETE FROM public.delivery_times dt
+  WHERE NOT EXISTS (
+    SELECT 1 FROM temp_new_slots tns
+    WHERE TRIM(dt.day) = TRIM(tns.day_name)
+      AND dt.hours = tns.slot_hour
+      AND COALESCE(dt.minutes, 0) = tns.slot_minute
+      AND TRIM(dt.ampm) = TRIM(tns.slot_period)
+  )
+  AND COALESCE(dt.current_load_lu, 0) = 0;
+  
+  -- Recalculate max_capacity_lu for all slots based on driver assignments
+  UPDATE public.delivery_times dt
+  SET max_capacity_lu = COALESCE(
+    (SELECT COUNT(*) * config_record.load_units_per_driver
+     FROM public.driver_schedules ds
+     WHERE ds.delivery_time_id = dt.id),
+    0
+  );
+  
+  RETURN format('Updated %s slots, inserted %s new slots', updated_count, inserted_count);
 END;
 $$;
 
 COMMENT ON FUNCTION public.regenerate_delivery_times IS
-'Clears and regenerates all delivery_times slots based on current daily_configs';
+'Updates and regenerates delivery_times slots while preserving driver assignments and existing references';
 
 -- =====================================================
 -- RPC: Update Daily Configuration

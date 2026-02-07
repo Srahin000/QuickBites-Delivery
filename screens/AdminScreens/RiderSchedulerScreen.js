@@ -105,6 +105,8 @@ export default function RiderSchedulerScreen() {
         .order('hours', { ascending: true });
 
       if (error) throw error;
+      console.log('📦 Fetched slots:', data?.length || 0, 'slots');
+      console.log('📦 Sample slot:', data?.[0]);
       setAllSlots(data || []);
     } catch (error) {
       console.error('Error fetching slots:', error);
@@ -369,18 +371,25 @@ export default function RiderSchedulerScreen() {
     const assignedIds = new Set(
       driverSchedules.filter((s) => s.driver_id === selectedDriverId).map((s) => s.delivery_time_id)
     );
+    console.log('🔍 Assign filter - Driver:', selectedDriverId.substring(0, 8));
+    console.log('🔍 Assign filter - View days:', viewDays);
+    console.log('🔍 Assign filter - All slots count:', allSlots.length);
+    console.log('🔍 Assign filter - Already assigned:', assignedIds.size);
+    
     const sortedDays = [...viewDays].sort((a, b) => order.indexOf(a) - order.indexOf(b));
     const items = [];
     sortedDays.forEach((dayName) => {
       const daySlots = allSlots.filter(
         (s) => s.day?.trim() === dayName && !assignedIds.has(s.id)
       );
+      console.log(`🔍 Assign filter - ${dayName}: ${daySlots.length} available slots`);
       if (daySlots.length === 0) return;
       items.push({ type: 'header', day: dayName, key: `assign-header-${dayName}` });
       sortSlotsByTime(daySlots).forEach((slot) => {
         items.push({ type: 'slot', slot, key: `assign-slot-${slot.id}` });
       });
     });
+    console.log('🔍 Assign filter - Total items:', items.length);
     return items;
   }, [allSlots, viewDays, selectedDriverId, driverSchedules, order]);
 
@@ -417,19 +426,8 @@ export default function RiderSchedulerScreen() {
 
   const selectedDriver = drivers.find((d) => d.id === selectedDriverId);
 
-  return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="p-2">
-          <Icon.ArrowLeft stroke={themeColors.text} width={24} height={24} />
-        </TouchableOpacity>
-        <Text className="text-xl font-bold text-gray-800">Rider Scheduler</Text>
-        <TouchableOpacity onPress={onRefresh} className="p-2">
-          <Icon.RefreshCw stroke={themeColors.text} width={24} height={24} />
-        </TouchableOpacity>
-      </View>
-
+  const renderListHeader = () => (
+    <>
       {/* Configuration Section */}
       <View className="bg-white mx-4 mt-4 p-4 rounded-2xl border border-gray-100">
         <Text className="text-lg font-bold text-gray-800 mb-3">Schedule Configuration</Text>
@@ -557,7 +555,7 @@ export default function RiderSchedulerScreen() {
                 <Text className="font-semibold text-gray-900">{selectedDriver.name || selectedDriver.email}</Text>
               </View>
             )}
-            <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled showsVerticalScrollIndicator>
+            <View style={{ maxHeight: 160 }}>
               {filteredDrivers.map((driver) => (
                 <TouchableOpacity
                   key={driver.id}
@@ -575,7 +573,7 @@ export default function RiderSchedulerScreen() {
               {filteredDrivers.length === 0 && (
                 <Text className="text-gray-500 text-center py-3 text-sm">No match</Text>
               )}
-            </ScrollView>
+            </View>
           </>
         )}
       </View>
@@ -624,12 +622,28 @@ export default function RiderSchedulerScreen() {
           </View>
         </View>
       )}
+    </>
+  );
+
+  return (
+    <SafeAreaView className="flex-1 bg-gray-50">
+      {/* Header */}
+      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
+        <TouchableOpacity onPress={() => navigation.goBack()} className="p-2">
+          <Icon.ArrowLeft stroke={themeColors.text} width={24} height={24} />
+        </TouchableOpacity>
+        <Text className="text-xl font-bold text-gray-800">Rider Scheduler</Text>
+        <TouchableOpacity onPress={onRefresh} className="p-2">
+          <Icon.RefreshCw stroke={themeColors.text} width={24} height={24} />
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         className="flex-1 bg-gray-50"
         data={listItems}
         keyExtractor={(item) => item.key}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListHeaderComponent={renderListHeader}
         ListEmptyComponent={
           !selectedDriverId ? (
             <View className="py-12 mx-4">
