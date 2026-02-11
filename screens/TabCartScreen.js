@@ -13,6 +13,7 @@ import { useSession } from '../context/SessionContext-v2';
 import TimeSlotModal from '../components/TimeSlotModal';
 import LocationModal from '../components/LocationModal';
 import notificationService from '../services/notificationService';
+import emailService from '../services/emailService';
 import { calculateCartLoad, getLoadWarning } from '../utils/cartLoadCalculator';
 // Apple Pay is presented within Stripe PaymentSheet
 
@@ -787,6 +788,29 @@ export default function CartScreen() {
         notificationService.notifyAdmins(payload, user.id);
       } catch (notifErr) {
         console.error('Error sending submitted broadcast notifications:', notifErr);
+      }
+
+      // Send order confirmation email to the customer
+      // Fire and forget; don't block checkout
+      try {
+        emailService.sendOrderConfirmation({
+          orderId: orderData.id,
+          orderCode: orderData.order_code,
+          userId: user.id,
+          restaurantName: restaurantOrder.restaurant_name,
+          items: restaurantOrder.items,
+          subtotal: restaurantOrder.subtotal,
+          deliveryFee,
+          tax,
+          transactionFee: restaurantTransactionFee,
+          total: restaurantTotal,
+          deliveryDate: selectedDate.toISOString().split('T')[0],
+          deliveryLocation: selectedLocation?.location || 'Main Entrance - City College',
+          deliveryTime: selectedTimeSlot?.customerWindowLabel || null,
+        });
+      } catch (emailErr) {
+        console.error('Error sending order confirmation email:', emailErr);
+        // Don't block order completion if email fails
       }
 
       // Track club order if club support is enabled and selected
