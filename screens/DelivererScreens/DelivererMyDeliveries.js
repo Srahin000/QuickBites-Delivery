@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Linking } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as Icon from 'react-native-feather';
 import supabase from "../../supabaseClient"
@@ -11,6 +11,18 @@ const STATUS_OPTIONS = [
   'processing',
   'ready to pickup',
   'delivered',
+];
+
+const MIN_TAP_HEIGHT = 44;
+
+const CARD_PADDING = 16;
+const ICON_SIZE = 16;
+const ICON_COLOR = '#9CA3AF';
+
+const STATUS_OPTIONS_UI = [
+  { key: 'processing', label: 'Processing', color: '#D97706', border: '#F59E0B' },
+  { key: 'ready to pickup', label: 'Ready to pickup', color: '#2563EB', border: '#3B82F6' },
+  { key: 'delivered', label: 'Delivered', color: '#059669', border: '#10B981' },
 ];
 
 export default function DelivererMyDeliveries() {
@@ -240,139 +252,184 @@ export default function DelivererMyDeliveries() {
             </View>
           )}
           renderItem={({ item }) => (
-              <View style={{ marginBottom: 20 }}>
-                {/* Restaurant Header */}
-                <View style={{ 
-                  backgroundColor: themeColors.purple, 
-                  borderRadius: 12, 
-                  padding: 16, 
-                  marginBottom: 12,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
+              <View style={{ marginBottom: 24 }}>
+                {/* Restaurant Header - subtle, left-accent */}
+                <View style={{
+                  backgroundColor: '#F5F3FF',
+                  borderLeftWidth: 4,
+                  borderLeftColor: themeColors.purple,
+                  borderRadius: 8,
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  marginBottom: 16,
                 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ 
-                      fontWeight: 'bold', 
-                      fontSize: 18, 
-                      color: 'white',
-                      marginBottom: 4
-                    }}>
-                      🏪 {item.restaurantName}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Icon.Home width={18} height={18} stroke={themeColors.purple} strokeWidth={2} />
+                        <Text style={{ fontWeight: '600', fontSize: 16, color: '#374151' }} numberOfLines={1}>
+                          {item.restaurantName}
+                        </Text>
+                      </View>
+                      {item.restaurantDetails?.address ? (
+                        <TouchableOpacity
+                          onPress={() => {
+                            const addr = encodeURIComponent(item.restaurantDetails.address);
+                            Linking.openURL(`https://maps.google.com/?q=${addr}`).catch(() => {});
+                          }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}
+                        >
+                          <Icon.MapPin width={14} height={14} stroke="#6B7280" />
+                          <Text style={{ color: '#6B7280', fontSize: 13 }} numberOfLines={1}>
+                            {item.restaurantDetails.address}
+                          </Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                    <Text style={{ fontSize: 13, color: '#6B7280', fontWeight: '600' }}>
+                      {item.orders.length} order{item.orders.length !== 1 ? 's' : ''}
                     </Text>
-                    {item.restaurantDetails?.address && (
-                      <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>
-                        📍 {item.restaurantDetails.address}
-                      </Text>
-                    )}
                   </View>
-                  <Text style={{ 
-                    color: 'rgba(255,255,255,0.9)', 
-                    fontSize: 14, 
-                    fontWeight: '600' 
-                  }}>
-                    {item.orders.length} order{item.orders.length !== 1 ? 's' : ''}
-                  </Text>
                 </View>
 
-                {/* Orders for this restaurant */}
-                {item.orders.map((order) => (
-                  <View key={order.id} style={{ backgroundColor: '#f7f7f7', borderRadius: 16, padding: 16, marginBottom: 12 }}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 18, color: themeColors.purple, marginBottom: 8 }}>Order #{order.order_code}</Text>
-                    
-                    {/* Customer Info */}
-                    <View style={{ marginBottom: 8 }}>
-                      <Text style={{ fontWeight: 'bold', color: '#333', fontSize: 14 }}>👤 Customer</Text>
-                      <Text style={{ color: '#333', marginTop: 2 }}>{order.customerName}</Text>
+                {/* Order cards */}
+                {item.orders.map((order) => {
+                  const currentIndex = STATUS_OPTIONS_UI.findIndex(s => s.key === order.status);
+                  const nextStatusKey = currentIndex >= 0 && currentIndex < STATUS_OPTIONS_UI.length - 1
+                    ? STATUS_OPTIONS_UI[currentIndex + 1].key
+                    : null;
+                  const isUpdating = updating[order.id];
+
+                  return (
+                  <View
+                    key={order.id}
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: 12,
+                      padding: CARD_PADDING,
+                      marginBottom: 14,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                      elevation: 3,
+                    }}
+                  >
+                    {/* Top row: Customer name (primary) + Order badge (top-right) */}
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: CARD_PADDING }}>
+                      <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', flex: 1 }} numberOfLines={1}>
+                        {order.customerName}
+                      </Text>
+                      <View style={{ backgroundColor: themeColors.purple, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 }}>
+                        <Text style={{ color: 'white', fontWeight: '700', fontSize: 11 }}>#{order.order_code}</Text>
+                      </View>
                     </View>
 
-                    {/* Delivery Location */}
-                    <View style={{ marginBottom: 8 }}>
-                      <Text style={{ fontWeight: 'bold', color: '#333', fontSize: 14 }}>📍 Delivery Location</Text>
-                      <Text style={{ color: '#333', marginTop: 2 }}>{order.delivery_location || 'Main Entrance - City College'}</Text>
+                    {/* Location + time with small grey icons */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <Icon.MapPin width={ICON_SIZE} height={ICON_SIZE} stroke={ICON_COLOR} />
+                      <Text style={{ fontSize: 14, fontWeight: '400', color: '#6B7280' }} numberOfLines={1}>
+                        {order.delivery_location || 'Main Entrance - City College'}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: CARD_PADDING }}>
+                      <Icon.Clock width={ICON_SIZE} height={ICON_SIZE} stroke={ICON_COLOR} />
+                      <Text style={{ fontSize: 12, fontWeight: '400', color: '#9CA3AF' }}>
+                        Placed {new Date(order.created_at).toLocaleString()}
+                      </Text>
                     </View>
 
-                    {/* Order Items with Customizations */}
-                    <View style={{ marginBottom: 8 }}>
-                      <Text style={{ fontWeight: 'bold', color: '#333', fontSize: 14 }}>🍽️ Order Items</Text>
-                      {order.items && order.items.map((orderItem, index) => (
-                        <View key={index} style={{ marginTop: 4, paddingLeft: 8 }}>
-                          <Text style={{ color: '#333', fontWeight: '600' }}>
-                            {orderItem.quantity}x {orderItem.name} - ${(parseFloat(orderItem.price) * orderItem.quantity).toFixed(2)}
-                          </Text>
-                          {orderItem.customizations && typeof orderItem.customizations === 'object' && orderItem.customizations !== null && Object.keys(orderItem.customizations).length > 0 && (
-                            <View style={{ marginTop: 2, paddingLeft: 8 }}>
-                              <Text style={{ color: '#666', fontSize: 12, fontWeight: 'bold' }}>Customizations:</Text>
-                              {Object.entries(orderItem.customizations).map(([key, value]) => {
-                                // Skip empty or null values
-                                if (!value || value === '' || value === 0) return null;
-                                
-                                // Handle nested objects (like Rice: {regular: 0, extra: 0})
-                                if (typeof value === 'object' && value !== null) {
-                                  const selectedOptions = Object.entries(value)
-                                    .filter(([option, price]) => price !== 0 || option === 'regular' || option === 'light' || option === 'extra')
-                                    .map(([option, price]) => option)
-                                    .join(', ');
-                                  
-                                  if (selectedOptions) {
-                                    return (
-                                      <Text key={key} style={{ color: '#666', fontSize: 12, marginLeft: 4 }}>
-                                        • {key}: {selectedOptions}
-                                      </Text>
-                                    );
-                                  }
-                                  return null;
-                                }
-                                
-                                // Handle simple values
-                                return (
-                                  <Text key={key} style={{ color: '#666', fontSize: 12, marginLeft: 4 }}>
-                                    • {key}: {value}
-                                  </Text>
-                                );
-                              }).filter(Boolean)}
+                    {/* Item summary: bulleted list on light grey background */}
+                    <View style={{ backgroundColor: '#F3F4F6', borderRadius: 8, padding: CARD_PADDING, marginBottom: CARD_PADDING }}>
+                      {order.items && order.items.length > 0 ? (
+                        <>
+                          {order.items.map((orderItem, index) => (
+                            <View key={index} style={{ marginBottom: index < order.items.length - 1 ? 8 : 0 }}>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                                <Text style={{ fontSize: 14, color: '#374151', fontWeight: '400' }}>
+                                  • {orderItem.quantity}x {orderItem.name}
+                                </Text>
+                                <Text style={{ fontSize: 14, color: '#374151', fontWeight: '400' }}>
+                                  ${(parseFloat(orderItem.price) * orderItem.quantity).toFixed(2)}
+                                </Text>
+                              </View>
+                              {orderItem.customizations && typeof orderItem.customizations === 'object' && orderItem.customizations !== null && Object.keys(orderItem.customizations).length > 0 && (
+                                <View style={{ marginTop: 2, paddingLeft: 4 }}>
+                                  {Object.entries(orderItem.customizations).map(([key, value]) => {
+                                    if (!value || value === '' || value === 0) return null;
+                                    if (typeof value === 'object' && value !== null) {
+                                      const selectedOptions = Object.entries(value)
+                                        .filter(([option, price]) => price !== 0 || option === 'regular' || option === 'light' || option === 'extra')
+                                        .map(([option]) => option)
+                                        .join(', ');
+                                      if (!selectedOptions) return null;
+                                      return <Text key={key} style={{ color: '#6B7280', fontSize: 12, fontWeight: '400' }}>  {key}: {selectedOptions}</Text>;
+                                    }
+                                    return <Text key={key} style={{ color: '#6B7280', fontSize: 12, fontWeight: '400' }}>  {key}: {value}</Text>;
+                                  }).filter(Boolean)}
+                                </View>
+                              )}
                             </View>
-                          )}
+                          ))}
+                          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
+                            <Text style={{ fontSize: 14, color: '#111827', fontWeight: '700' }}>Total ${parseFloat(order.total).toFixed(2)}</Text>
+                          </View>
+                        </>
+                      ) : (
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                          <Text style={{ fontSize: 14, color: '#111827', fontWeight: '700' }}>Total ${parseFloat(order.total).toFixed(2)}</Text>
                         </View>
-                      ))}
+                      )}
                     </View>
 
-                    {/* Order Summary */}
-                    <View style={{ marginBottom: 8 }}>
-                      <Text style={{ fontWeight: 'bold', color: '#333', fontSize: 14 }}>💰 Order Summary</Text>
-                      <Text style={{ color: '#333', marginTop: 2 }}>Total: ${parseFloat(order.total).toFixed(2)}</Text>
-                      <Text style={{ color: '#666', fontSize: 12, marginTop: 2 }}>Placed: {new Date(order.created_at).toLocaleString()}</Text>
-                    </View>
+                    {/* Status change: Processing → Ready to pickup → Delivered (Delivered only after Ready to pickup) */}
+                    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                      {STATUS_OPTIONS_UI.map((opt) => {
+                        const isCurrent = order.status === opt.key;
+                        const isNext = nextStatusKey === opt.key;
+                        const isDeliveredOption = opt.key === 'delivered';
+                        const canTapDelivered = order.status === 'ready to pickup';
+                        const isDisabled =
+                          isUpdating ||
+                          isCurrent ||
+                          (isDeliveredOption && !canTapDelivered);
 
-                    <Text style={{ color: '#333', marginTop: 2, marginBottom: 8 }}>Status: <Text style={{ fontWeight: 'bold' }}>{order.status}</Text></Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {STATUS_OPTIONS.map(status => {
-                        // Disable "delivered" button if status is not "ready to pickup"
-                        const isDeliveredDisabled = status === 'delivered' && order.status !== 'ready to pickup';
-                        const isDisabled = updating[order.id] || order.status === status || isDeliveredDisabled;
-                        
                         return (
-                        <TouchableOpacity
-                          key={status}
-                          onPress={() => updateStatus(order.id, status)}
+                          <TouchableOpacity
+                            key={opt.key}
+                            onPress={() => !isDisabled && updateStatus(order.id, opt.key)}
                             disabled={isDisabled}
-                          style={{
-                            backgroundColor: order.status === status ? themeColors.purple : '#eee',
-                            paddingVertical: 6,
-                            paddingHorizontal: 12,
-                            borderRadius: 8,
-                            marginRight: 8,
-                            marginBottom: 8,
+                            style={{
+                              minHeight: MIN_TAP_HEIGHT,
+                              paddingVertical: 12,
+                              paddingHorizontal: 14,
+                              borderRadius: 10,
+                              flex: 1,
+                              minWidth: 90,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              backgroundColor: isCurrent ? opt.color : 'transparent',
+                              borderWidth: isNext ? 2.5 : 1,
+                              borderColor: isCurrent ? opt.color : isNext ? opt.border : '#E5E7EB',
                               opacity: isDisabled ? 0.5 : 1,
-                          }}
-                        >
-                          <Text style={{ color: order.status === status ? 'white' : themeColors.purple, fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</Text>
-                        </TouchableOpacity>
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: isCurrent ? '#FFFFFF' : isNext ? opt.border : '#6B7280',
+                                fontWeight: isNext || isCurrent ? '700' : '400',
+                                fontSize: 13,
+                              }}
+                            >
+                              {opt.label}
+                            </Text>
+                          </TouchableOpacity>
                         );
                       })}
                     </View>
                   </View>
-                ))}
+                  );
+                })}
               </View>
             )}
           />

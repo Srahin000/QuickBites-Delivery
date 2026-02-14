@@ -29,7 +29,7 @@
         {
           "ios": {
             "otherXcodeBuildSettings": {
-              "ENABLE_USER_SCRIPT_SANDBOXING": "NO"
+              "ENABLE_USER_SCRIPT_SANDBOXING": false
             }
           }
         }

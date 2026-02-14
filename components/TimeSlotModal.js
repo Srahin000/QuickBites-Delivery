@@ -27,8 +27,8 @@ const TimeSlotModal = ({ visible, onClose, onTimeSelected, restaurantId, timeOve
   // Use the actual current day instead of hardcoded Monday
   const currentDay = todayDay;
   
-  // Check if today is a delivery day (weekdays) - but override if timeOverride is enabled
-  const isDeliveryDay = timeOverride || (today.getDay() >= 1 && today.getDay() <= 5);
+  // Allow orders any day of the week (weekends enabled)
+  const isDeliveryDay = true;
 
   useEffect(() => {
     if (visible) {

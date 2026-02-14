@@ -412,18 +412,12 @@ export default function CartScreen() {
         .in('status', ['redeemed', 'available']);
 
       if (!existingError && existingRows && existingRows.length > 0) {
-        // Check if it's already in the applied list
-        const isAlreadyApplied = appliedCoupons.some(cu => cu.coupon_id === coupon.id);
-        
-        if (isAlreadyApplied) {
-          Alert.alert('Already Applied', 'This coupon is already applied to your cart.');
-        } else {
-          // They have it in their account but removed it from cart - silently re-add it
-          setPendingSelectedCouponId(coupon.id);
-          fetchUserCoupons(); // This will add it back to appliedCoupons
-        }
+        // User already has this coupon - set it as the active selection directly
+        // We use existingRows[0].id (the coupons_usage.id) not coupon.id (the coupons.id)
+        setSelectedCouponUsageId(existingRows[0].id);
         setCouponCode('');
         setRedeemingCoupon(false);
+        Alert.alert('Coupon Applied', 'Your coupon has been applied to the cart.');
         return;
       }
 
@@ -621,9 +615,8 @@ export default function CartScreen() {
   const hasLocation = selectedLocation !== null;
   const canPlaceOrder = hasTimeSlots && hasLocation;
 
-  const isWeekday = today.getDay() >= 1 && today.getDay() <= 5;
   const hasAvailableTimeSlots = availableTimeSlots.length > 0;
-  const isOrderAllowed = serviceOpen && (timeOverride || (isWeekday && canPlaceOrder && hasAvailableTimeSlots));
+  const isOrderAllowed = serviceOpen && (timeOverride || (canPlaceOrder && hasAvailableTimeSlots));
   const canUseInstantPay = instantPayEnabled && canPlaceOrder;
 
   const handleTimeSlotSelected = (windowData) => {
@@ -811,14 +804,19 @@ export default function CartScreen() {
         }
       }
 
-      // Mark referral reward as used if it was applied
-      if (referralPromoEnabled && referralReward) {
+      // Mark referral reward as used ONLY if REFERRAL50 coupon was actually applied
+      if (referralPromoEnabled && referralReward && activeCoupons.length > 0) {
         try {
-          await supabase
-            .from('referral_usage')
-            .update({ referrer_rewarded: true })
-            .eq('id', referralReward.id);
-          console.log('Referral reward marked as used');
+          // Check if REFERRAL50 was one of the applied coupons
+          const usedReferral50 = activeCoupons.some(cu => cu.coupons?.coupon_code === 'REFERRAL50');
+          
+          if (usedReferral50) {
+            await supabase
+              .from('referral_usage')
+              .update({ referrer_rewarded: true })
+              .eq('id', referralReward.id);
+            console.log('Referral reward marked as used (REFERRAL50 applied)');
+          }
         } catch (refErr) {
           console.error('Error updating referral reward:', refErr);
           // Don't block order completion if referral update fails

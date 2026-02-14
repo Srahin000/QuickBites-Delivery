@@ -25,7 +25,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signInWithGoogle } from '../components/googleAuth';
 import * as WebBrowser from "expo-web-browser";
 
+
 WebBrowser.maybeCompleteAuthSession();
+
+/** Returns true if the referral RPC failed because the code was already used (benign, no need to log). */
+const isReferralAlreadyUsed = (err, result) => {
+  const msg = (err?.message ?? result?.error ?? '').toString().toLowerCase();
+  return msg.includes('already used');
+};
 
 const SignupScreen = () => {
   const navigation = useNavigation();
@@ -36,6 +43,7 @@ const SignupScreen = () => {
   const [referralCode, setReferralCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [referralPromoEnabled, setReferralPromoEnabled] = useState(false);
+  const [citymailRequired, setCitymailRequired] = useState(false);
   const role = 'customer';
 
   // Check if referral promo is enabled
@@ -59,14 +67,38 @@ const SignupScreen = () => {
     checkReferralPromoStatus();
   }, []);
 
-  // ✅ Check for existing session on mount (handles email confirmation)
+  // Check if citymail is required
   useEffect(() => {
-    const checkSessionAndInsertUser = async () => {
+    const checkCitymailRequirement = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('service_approval')
+          .select('open')
+          .eq('id', 6)
+          .single();
+        
+        if (!error && data) {
+          setCitymailRequired(data.open);
+        }
+      } catch (err) {
+        console.error('Error checking citymail requirement:', err);
+      }
+    };
+    
+    checkCitymailRequirement();
+  }, []);
+
+  // ✅ Check for existing session on mount - redirect if already authenticated
+  useEffect(() => {
+    const checkSessionAndProcessReferral = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
   
       if (!user) return;
   
+      // ✅ If user is already authenticated, redirect to home
+      console.log('User already authenticated, redirecting...');
+      
       // ✅ Persist the confirmed session to AsyncStorage
       try {
         await AsyncStorage.setItem('supabase.auth.token', JSON.stringify(session));
@@ -75,49 +107,39 @@ const SignupScreen = () => {
         console.error('Error persisting confirmation session:', storageError);
       }
   
-      const { data: existingUser } = await supabase
-        .from("users")
-        .select("id")
-        .eq("id", user.id)
-        .single();
-  
-      if (!existingUser) {
-        await supabase.from("users").upsert([{
-          id: user.id,
-          email: user.email,
-          first_name: firstName,
-          last_name: lastName,
-          role: role,
-        }]);
-        
-        // Process referral code if it was provided during signup
-        const storedReferralCode = await AsyncStorage.getItem('signup_referral_code');
-        if (storedReferralCode && referralPromoEnabled) {
-          try {
-            const { data: result, error: refError } = await supabase
-              .rpc('process_referral_signup', {
-                p_referee_user_id: user.id,
-                p_referral_code: storedReferralCode.trim().toUpperCase()
-              });
-            
-            if (!refError && result?.success) {
-              console.log('Referral code processed successfully');
-              // Clear stored referral code
-              await AsyncStorage.removeItem('signup_referral_code');
-            } else {
-              console.error('Error processing referral code:', refError || result?.error);
-            }
-          } catch (refErr) {
+      // Process referral code if it was provided during signup
+      const storedReferralCode = await AsyncStorage.getItem('signup_referral_code');
+      if (storedReferralCode && referralPromoEnabled) {
+        try {
+          const { data: result, error: refError } = await supabase
+            .rpc('process_referral_signup', {
+              p_referee_user_id: user.id,
+              p_referral_code: storedReferralCode.trim().toUpperCase()
+            });
+          
+          if (!refError && result?.success) {
+            console.log('Referral code processed successfully');
+            await AsyncStorage.removeItem('signup_referral_code');
+          } else if (isReferralAlreadyUsed(refError, result)) {
+            await AsyncStorage.removeItem('signup_referral_code');
+          } else {
+            console.error('Error processing referral code:', refError || result?.error);
+          }
+        } catch (refErr) {
+          if (isReferralAlreadyUsed(refErr)) {
+            await AsyncStorage.removeItem('signup_referral_code');
+          } else {
             console.error('Error processing referral code:', refErr);
           }
         }
       }
-  
-      // No manual navigation here, let navigation.js handle it
+
+      // Navigate away from signup screen since user is already authenticated
+      navigation.replace('Home');
     };
   
-    checkSessionAndInsertUser();
-  }, [firstName, lastName, referralPromoEnabled]);
+    checkSessionAndProcessReferral();
+  }, [referralPromoEnabled, navigation]);
   
 
   // ✅ Also handle real-time SIGNED_IN events (Google or manual login)
@@ -136,48 +158,29 @@ const SignupScreen = () => {
             console.error('Error persisting session from auth state change:', storageError);
           }
 
-          const { data: existingUser, error: checkError } = await supabase
-            .from("users")
-            .select("id")
-            .eq("id", user.id)
-            .single();
-
-          if (!existingUser) {
-            const { error: insertError } = await supabase
-              .from("users")
-              .upsert([
-                {
-                  id: user.id,
-                  email: user.email,
-                  first_name: firstName,
-                  last_name: lastName,
-                  role: role,
-                },
-              ]);
-
-            if (insertError) {
-              console.error("Insert user error:", insertError);
-            } else {
-              // Process referral code if it was provided during signup
-              const storedReferralCode = await AsyncStorage.getItem('signup_referral_code');
-              if (storedReferralCode && referralPromoEnabled) {
-                try {
-                  const { data: result, error: refError } = await supabase
-                    .rpc('process_referral_signup', {
-                      p_referee_user_id: user.id,
-                      p_referral_code: storedReferralCode.trim().toUpperCase()
-                    });
-                  
-                  if (!refError && result?.success) {
-                    console.log('Referral code processed successfully');
-                    // Clear stored referral code
-                    await AsyncStorage.removeItem('signup_referral_code');
-                  } else {
-                    console.error('Error processing referral code:', refError || result?.error);
-                  }
-                } catch (refErr) {
-                  console.error('Error processing referral code:', refErr);
-                }
+          // Process referral code if it was provided during signup
+          const storedReferralCode = await AsyncStorage.getItem('signup_referral_code');
+          if (storedReferralCode && referralPromoEnabled) {
+            try {
+              const { data: result, error: refError } = await supabase
+                .rpc('process_referral_signup', {
+                  p_referee_user_id: user.id,
+                  p_referral_code: storedReferralCode.trim().toUpperCase()
+                });
+              
+              if (!refError && result?.success) {
+                console.log('Referral code processed successfully');
+                await AsyncStorage.removeItem('signup_referral_code');
+              } else if (isReferralAlreadyUsed(refError, result)) {
+                await AsyncStorage.removeItem('signup_referral_code');
+              } else {
+                console.error('Error processing referral code:', refError || result?.error);
+              }
+            } catch (refErr) {
+              if (isReferralAlreadyUsed(refErr)) {
+                await AsyncStorage.removeItem('signup_referral_code');
+              } else {
+                console.error('Error processing referral code:', refErr);
               }
             }
           }
@@ -199,6 +202,30 @@ const SignupScreen = () => {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
+
+    // Check if user is already authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      Alert.alert("Already Signed In", "You are already signed in.", [
+        { text: "Go to Home", onPress: () => navigation.replace('Home') },
+      ]);
+      return;
+    }
+
+    // Validate email domain if citymail is required
+    if (citymailRequired) {
+      const emailLower = email.toLowerCase();
+      const validDomains = ['citymail.cuny.edu', 'ccny.cuny.edu'];
+      const isValidDomain = validDomains.some(domain => emailLower.endsWith(`@${domain}`));
+      
+      if (!isValidDomain) {
+        Alert.alert(
+          "Invalid Email",
+          "Please use your CUNY email address (@citymail.cuny.edu or @ccny.cuny.edu)"
+        );
+        return;
+      }
+    }
   
     setLoading(true);
     try {
@@ -207,11 +234,21 @@ const SignupScreen = () => {
         await AsyncStorage.setItem('signup_referral_code', referralCode.trim().toUpperCase());
       }
       
-      // ✅ Remove the unnecessary sign-in pre-check and directly try signing up
-      const { user, session, error: signUpError } = await supabase.auth.signUp({
+      // Sign up with metadata (trigger will use this to create profile after email confirmation)
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            role: role,
+          }
+        }
       });
+
+      const user = data?.user;
+      const session = data?.session;
   
       if (signUpError) {
         if (signUpError.message.includes("already registered")) {
@@ -233,6 +270,7 @@ const SignupScreen = () => {
           // Process referral code immediately if session is available
           if (referralCode.trim() && referralPromoEnabled) {
             try {
+              console.log('Processing referral code:', referralCode.trim().toUpperCase());
               const { data: result, error: refError } = await supabase
                 .rpc('process_referral_signup', {
                   p_referee_user_id: user.id,
@@ -240,13 +278,19 @@ const SignupScreen = () => {
                 });
               
               if (!refError && result?.success) {
-                console.log('Referral code processed successfully');
+                console.log('✅ Referral code processed successfully:', result);
+                await AsyncStorage.removeItem('signup_referral_code');
+              } else if (isReferralAlreadyUsed(refError, result)) {
                 await AsyncStorage.removeItem('signup_referral_code');
               } else {
-                console.error('Error processing referral code:', refError || result?.error);
+                console.error('❌ Error processing referral code:', refError || result);
               }
             } catch (refErr) {
-              console.error('Error processing referral code:', refErr);
+              if (isReferralAlreadyUsed(refErr)) {
+                await AsyncStorage.removeItem('signup_referral_code');
+              } else {
+                console.error('❌ Exception processing referral code:', refErr);
+              }
             }
           }
         } catch (storageError) {

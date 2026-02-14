@@ -7,12 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		01BCCCC0BDBCD0D788442CBE /* libPods-Quickbites.a in Frameworks */ = {isa = PBXBuildFile; fileRef = AFB10693E5F27673C6ED6D55 /* libPods-Quickbites.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		2C8267A7C5575BE6D3B075D3 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A9971624A6BDA6C9C9045BE /* ExpoModulesProvider.swift */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		666F3B970D12D89E439869DD /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 24FB93BB11761E1B0D5558EA /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		D6F187C85FCD51EADE5E52FF /* libPods-Quickbites.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 91C09D98DDB7E48E854444CB /* libPods-Quickbites.a */; };
+		D3A9E28BE4DB0CB4B51A2AD5 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2229A53E117EA213BB1DD18 /* ExpoModulesProvider.swift */; };
+		E07D4EA196CE97E3D225F3B8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 6C60C9EB28A35B2D37F80F17 /* PrivacyInfo.xcprivacy */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,13 +20,13 @@
 		13B07F961A680F5B00A75B9A /* Quickbites.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Quickbites.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Quickbites/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Quickbites/Info.plist; sourceTree = "<group>"; };
-		24FB93BB11761E1B0D5558EA /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = Quickbites/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		282A9E9EFE3E72DA34E05344 /* Pods-Quickbites.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Quickbites.debug.xcconfig"; path = "Target Support Files/Pods-Quickbites/Pods-Quickbites.debug.xcconfig"; sourceTree = "<group>"; };
-		4A9971624A6BDA6C9C9045BE /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Quickbites/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		91C09D98DDB7E48E854444CB /* libPods-Quickbites.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Quickbites.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		19E11F1C1A93CE55FF604AE1 /* Pods-Quickbites.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Quickbites.debug.xcconfig"; path = "Target Support Files/Pods-Quickbites/Pods-Quickbites.debug.xcconfig"; sourceTree = "<group>"; };
+		6C60C9EB28A35B2D37F80F17 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = Quickbites/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7829BD7B813F9BD61AA8890D /* Pods-Quickbites.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Quickbites.release.xcconfig"; path = "Target Support Files/Pods-Quickbites/Pods-Quickbites.release.xcconfig"; sourceTree = "<group>"; };
+		A2229A53E117EA213BB1DD18 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Quickbites/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Quickbites/SplashScreen.storyboard; sourceTree = "<group>"; };
+		AFB10693E5F27673C6ED6D55 /* libPods-Quickbites.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Quickbites.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		C728E8FF3C99858DEAD4C6E1 /* Pods-Quickbites.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Quickbites.release.xcconfig"; path = "Target Support Files/Pods-Quickbites/Pods-Quickbites.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Quickbites/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* Quickbites-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Quickbites-Bridging-Header.h"; path = "Quickbites/Quickbites-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -37,17 +37,17 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D6F187C85FCD51EADE5E52FF /* libPods-Quickbites.a in Frameworks */,
+				01BCCCC0BDBCD0D788442CBE /* libPods-Quickbites.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		06146A6302497099E433E317 /* ExpoModulesProviders */ = {
+		0C792B631FBD103AA7327F0F /* ExpoModulesProviders */ = {
 			isa = PBXGroup;
 			children = (
-				2B982433E68AD342DB00373B /* Quickbites */,
+				D25590988961D6FFFFA24189 /* Quickbites */,
 			);
 			name = ExpoModulesProviders;
 			sourceTree = "<group>";
@@ -61,24 +61,25 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				24FB93BB11761E1B0D5558EA /* PrivacyInfo.xcprivacy */,
+				6C60C9EB28A35B2D37F80F17 /* PrivacyInfo.xcprivacy */,
 			);
 			name = Quickbites;
 			sourceTree = "<group>";
 		};
-		2B982433E68AD342DB00373B /* Quickbites */ = {
+		1C7DCD6F8B7D91023E6C7D51 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				4A9971624A6BDA6C9C9045BE /* ExpoModulesProvider.swift */,
+				19E11F1C1A93CE55FF604AE1 /* Pods-Quickbites.debug.xcconfig */,
+				7829BD7B813F9BD61AA8890D /* Pods-Quickbites.release.xcconfig */,
 			);
-			name = Quickbites;
+			path = Pods;
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				91C09D98DDB7E48E854444CB /* libPods-Quickbites.a */,
+				AFB10693E5F27673C6ED6D55 /* libPods-Quickbites.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -97,8 +98,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				F5D2EF6F27674D99096A2970 /* Pods */,
-				06146A6302497099E433E317 /* ExpoModulesProviders */,
+				1C7DCD6F8B7D91023E6C7D51 /* Pods */,
+				0C792B631FBD103AA7327F0F /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -122,13 +123,12 @@
 			path = Quickbites/Supporting;
 			sourceTree = "<group>";
 		};
-		F5D2EF6F27674D99096A2970 /* Pods */ = {
+		D25590988961D6FFFFA24189 /* Quickbites */ = {
 			isa = PBXGroup;
 			children = (
-				282A9E9EFE3E72DA34E05344 /* Pods-Quickbites.debug.xcconfig */,
-				C728E8FF3C99858DEAD4C6E1 /* Pods-Quickbites.release.xcconfig */,
+				A2229A53E117EA213BB1DD18 /* ExpoModulesProvider.swift */,
 			);
-			path = Pods;
+			name = Quickbites;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -139,13 +139,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Quickbites" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				0F6725E75E19B5257259AA2B /* [Expo] Configure project */,
+				4A0B82397534DB34A276080C /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				74F1788DD932607780B56D13 /* [CP] Embed Pods Frameworks */,
+				74EBAB613A725156C9BEFB10 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -162,10 +162,13 @@
 		83CBB9F71A601CBA00E9B192 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1130;
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1250;
+						DevelopmentTeam = "962482SPW6";
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -195,7 +198,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				666F3B970D12D89E439869DD /* PrivacyInfo.xcprivacy in Resources */,
+				E07D4EA196CE97E3D225F3B8 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -239,7 +242,7 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		0F6725E75E19B5257259AA2B /* [Expo] Configure project */ = {
+		4A0B82397534DB34A276080C /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -258,7 +261,7 @@
 			shellPath = /bin/sh;
 			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Quickbites/expo-configure-project.sh\"\n";
 		};
-		74F1788DD932607780B56D13 /* [CP] Embed Pods Frameworks */ = {
+		74EBAB613A725156C9BEFB10 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -396,7 +399,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				2C8267A7C5575BE6D3B075D3 /* ExpoModulesProvider.swift in Sources */,
+				D3A9E28BE4DB0CB4B51A2AD5 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -405,14 +408,14 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 282A9E9EFE3E72DA34E05344 /* Pods-Quickbites.debug.xcconfig */;
+			baseConfigurationReference = 19E11F1C1A93CE55FF604AE1 /* Pods-Quickbites.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Quickbites/Quickbites.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 962482SPW6;
 				ENABLE_BITCODE = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					"FB_SONARKIT_ENABLED=1",
@@ -423,7 +426,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -437,25 +440,28 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
+				DEVELOPMENT_TEAM = "962482SPW6";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 			};
 			name = Debug;
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C728E8FF3C99858DEAD4C6E1 /* Pods-Quickbites.release.xcconfig */;
+			baseConfigurationReference = 7829BD7B813F9BD61AA8890D /* Pods-Quickbites.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Quickbites/Quickbites.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 962482SPW6;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = Quickbites/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -468,6 +474,9 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
+				DEVELOPMENT_TEAM = "962482SPW6";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 			};
 			name = Release;
 		};
@@ -494,6 +503,7 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -503,6 +513,7 @@
 				COPY_PHASE_STRIP = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -526,10 +537,7 @@
 				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -560,6 +568,7 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -569,6 +578,7 @@
 				COPY_PHASE_STRIP = YES;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -584,12 +594,10 @@
 				);
 				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = NO;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
 				USE_HERMES = true;
 				VALIDATE_PRODUCT = YES;
 			};

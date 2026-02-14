@@ -201,9 +201,35 @@ export default function RiderSchedulerScreen() {
       fetchDrivers(),
       fetchAllSlots(),
       fetchDriverSchedules(),
+      fetchCurrentConfig(),
     ]);
     setRefreshing(false);
   }, []);
+
+  // Live config from DB (for badges and reset)
+  const liveTrips = currentConfig?.trips_per_hour ?? null;
+  const liveInterval = currentConfig?.customer_interval_minutes ?? null;
+  const configIsModified = currentConfig != null && (
+    tripsPerHour !== liveTrips || customerInterval !== liveInterval
+  );
+
+  const resetToLiveConfig = () => {
+    if (currentConfig) {
+      setTripsPerHour(currentConfig.trips_per_hour ?? 4);
+      setCustomerInterval(currentConfig.customer_interval_minutes ?? 60);
+    }
+  };
+
+  // Per-day schedule summary: total slots and how many have at least one rider
+  const scheduleOverviewByDay = useMemo(() => {
+    const filledSlotIds = new Set(driverSchedules.map((s) => s.delivery_time_id));
+    return WEEKDAYS.map(({ full }) => {
+      const daySlots = allSlots.filter((s) => (s.day || '').trim() === full);
+      const total = daySlots.length;
+      const filled = daySlots.filter((s) => filledSlotIds.has(s.id)).length;
+      return { day: full, total, filled };
+    });
+  }, [allSlots, driverSchedules]);
 
   const toggleViewDay = (fullDayName) => {
     setViewDays((prev) =>
@@ -429,40 +455,68 @@ export default function RiderSchedulerScreen() {
   const renderListHeader = () => (
     <>
       {/* Configuration Section */}
-      <View className="bg-white mx-4 mt-4 p-4 rounded-2xl border border-gray-100">
-        <Text className="text-lg font-bold text-gray-800 mb-3">Schedule Configuration</Text>
-        
+      <View
+        className="mx-4 mt-4 p-4 rounded-2xl border-2"
+        style={{
+          backgroundColor: configIsModified ? '#FFFBEB' : '#FFFFFF',
+          borderColor: configIsModified ? '#F59E0B' : '#E5E7EB',
+        }}
+      >
+        <View className="flex-row items-center justify-between mb-3">
+          <Text className="text-lg font-bold text-gray-800">Schedule Configuration</Text>
+          {currentConfig != null && (
+            <Text className="text-xs text-gray-500">Live from DB</Text>
+          )}
+        </View>
+        {configIsModified && (
+          <View className="bg-amber-100 border border-amber-300 rounded-lg p-2 mb-3 flex-row items-center justify-between">
+            <Text className="text-amber-800 text-xs font-medium">Modified (unsaved)</Text>
+            <TouchableOpacity onPress={resetToLiveConfig} className="px-2 py-1 bg-amber-200 rounded">
+              <Text className="text-amber-900 text-xs font-semibold">Reset to Live</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Driver Pace (Backend) */}
         <View className="mb-4">
           <Text className="text-sm font-semibold text-gray-700 mb-2">Driver Pace (Backend)</Text>
           <Text className="text-xs text-gray-500 mb-2">Controls how frequently drivers make deliveries</Text>
           <View className="flex-row gap-2">
-            {[2, 3, 4].map((trips) => (
-              <TouchableOpacity
-                key={trips}
-                onPress={() => setTripsPerHour(trips)}
-                className={`flex-1 py-3 rounded-lg border ${
-                  tripsPerHour === trips
-                    ? 'bg-purple-600 border-purple-600'
-                    : 'bg-gray-50 border-gray-300'
-                }`}
-              >
-                <Text
-                  className={`text-center font-semibold ${
-                    tripsPerHour === trips ? 'text-white' : 'text-gray-700'
-                  }`}
+            {[2, 3, 4].map((trips) => {
+              const isLive = liveTrips !== null && trips === liveTrips;
+              const isSelected = tripsPerHour === trips;
+              const isDraft = isSelected && !isLive;
+              return (
+                <TouchableOpacity
+                  key={trips}
+                  onPress={() => setTripsPerHour(trips)}
+                  className="flex-1 rounded-lg border-2 py-3"
+                  style={{
+                    backgroundColor: isSelected ? (isLive ? '#059669' : themeColors.purple) : '#F9FAFB',
+                    borderColor: isLive && !isSelected ? '#059669' : isSelected ? 'transparent' : '#D1D5DB',
+                  }}
                 >
-                  {trips} trips/hr
-                </Text>
-                <Text
-                  className={`text-center text-xs mt-1 ${
-                    tripsPerHour === trips ? 'text-white opacity-90' : 'text-gray-500'
-                  }`}
-                >
-                  {trips === 2 ? '30 min' : trips === 3 ? '20 min' : '15 min'} slots
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <View className="flex-row items-center justify-center gap-1">
+                    <Text
+                      className={`text-center font-semibold ${isSelected ? 'text-white' : 'text-gray-700'}`}
+                    >
+                      {trips} trips/hr
+                    </Text>
+                    {isLive && (
+                      <Text className={`text-xs ${isSelected ? 'text-white' : 'text-green-600'}`}>● Live</Text>
+                    )}
+                  </View>
+                  <Text
+                    className={`text-center text-xs mt-1 ${isSelected ? 'text-white opacity-90' : 'text-gray-500'}`}
+                  >
+                    {trips === 2 ? '30 min' : trips === 3 ? '20 min' : '15 min'} slots
+                  </Text>
+                  {isDraft && (
+                    <Text className="text-center text-xs mt-0.5 text-amber-200">Unsaved</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -474,32 +528,41 @@ export default function RiderSchedulerScreen() {
             {[
               { value: 60, label: 'Hourly', sublabel: '1 Hour' },
               { value: 30, label: 'Precise', sublabel: '30 Mins' }
-            ].map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                onPress={() => setCustomerInterval(option.value)}
-                className={`flex-1 py-3 rounded-lg border ${
-                  customerInterval === option.value
-                    ? 'bg-purple-600 border-purple-600'
-                    : 'bg-gray-50 border-gray-300'
-                }`}
-              >
-                <Text
-                  className={`text-center font-semibold ${
-                    customerInterval === option.value ? 'text-white' : 'text-gray-700'
-                  }`}
+            ].map((option) => {
+              const isLive = liveInterval !== null && option.value === liveInterval;
+              const isSelected = customerInterval === option.value;
+              const isDraft = isSelected && !isLive;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  onPress={() => setCustomerInterval(option.value)}
+                  className="flex-1 rounded-lg border-2 py-3"
+                  style={{
+                    backgroundColor: isSelected ? (isLive ? '#059669' : themeColors.purple) : '#F9FAFB',
+                    borderColor: isLive && !isSelected ? '#059669' : isSelected ? 'transparent' : '#D1D5DB',
+                  }}
                 >
-                  {option.label}
-                </Text>
-                <Text
-                  className={`text-center text-xs mt-1 ${
-                    customerInterval === option.value ? 'text-white opacity-90' : 'text-gray-500'
-                  }`}
-                >
-                  {option.sublabel}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <View className="flex-row items-center justify-center gap-1">
+                    <Text
+                      className={`text-center font-semibold ${isSelected ? 'text-white' : 'text-gray-700'}`}
+                    >
+                      {option.label}
+                    </Text>
+                    {isLive && (
+                      <Text className={`text-xs ${isSelected ? 'text-white' : 'text-green-600'}`}>● Live</Text>
+                    )}
+                  </View>
+                  <Text
+                    className={`text-center text-xs mt-1 ${isSelected ? 'text-white opacity-90' : 'text-gray-500'}`}
+                  >
+                    {option.sublabel}
+                  </Text>
+                  {isDraft && (
+                    <Text className="text-center text-xs mt-0.5 text-amber-200">Unsaved</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -523,6 +586,26 @@ export default function RiderSchedulerScreen() {
             <Text className="text-center text-white font-semibold">Apply Configuration & Regenerate Slots</Text>
           )}
         </TouchableOpacity>
+      </View>
+
+      {/* Current Schedule Overview */}
+      <View className="bg-white mx-4 mt-4 p-4 rounded-2xl border border-gray-200">
+        <Text className="text-base font-bold text-gray-800 mb-3">Current Schedule Overview</Text>
+        <Text className="text-xs text-gray-500 mb-3">Slots filled = at least one rider assigned</Text>
+        <View className="flex-row flex-wrap gap-2">
+          {scheduleOverviewByDay.map(({ day, total, filled }) => (
+            <View
+              key={day}
+              className="px-3 py-2 rounded-lg border border-gray-200 bg-gray-50"
+              style={{ minWidth: '45%' }}
+            >
+              <Text className="text-sm font-semibold text-gray-800">{day}</Text>
+              <Text className="text-xs text-gray-600 mt-0.5">
+                {filled}/{total} slots filled
+              </Text>
+            </View>
+          ))}
+        </View>
       </View>
 
       {/* Deliverer selector */}

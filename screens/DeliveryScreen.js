@@ -1,7 +1,7 @@
-import { View, Text, TouchableOpacity, Animated, Easing, ScrollView, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Animated, Easing, ScrollView, Image, StatusBar, Platform } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Icon from 'react-native-feather';
 import { themeColors } from '../theme';
 import { supabase } from "../supabaseClient";
@@ -9,6 +9,7 @@ import { supabase } from "../supabaseClient";
 export default function DeliveryScreen() {
   const navigation = useNavigation();
   const { params } = useRoute();
+  const insets = useSafeAreaInsets();
   const restaurant = params?.restaurant;
   const cartItems = params?.cartItems || [];
   const totalAmount = params?.totalAmount || 0;
@@ -155,26 +156,32 @@ export default function DeliveryScreen() {
 
   if (!restaurant) {
     return (
-      <SafeAreaView className="flex-1 justify-center items-center bg-white">
+      <SafeAreaView className="flex-1 justify-center items-center bg-white" edges={['top', 'left', 'right']}>
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" />
         <Text className="text-xl text-gray-600">No restaurant selected</Text>
       </SafeAreaView>
     );
   }
 
+  const headerTopPadding = Platform.OS === 'ios' ? insets.top + 20 : (insets.top || 20);
+
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['left', 'right']}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" />
       <ScrollView 
         className="flex-1" 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 20 }}
       >
-        {/* Header */}
+        {/* Header - green checkmark is first fully visible element below notch/Dynamic Island */}
         <Animated.View 
           style={{ 
             opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }]
+            transform: [{ translateY: slideAnim }],
+            paddingTop: headerTopPadding,
+            paddingBottom: 16,
+            paddingHorizontal: 24,
           }}
-          className="px-6 pt-8 pb-4"
         >
           <View className="items-center">
             <View className="w-16 h-16 rounded-full bg-green-100 items-center justify-center mb-3">

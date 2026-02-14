@@ -29,15 +29,18 @@ export default function DelivererOrders() {
       
       if (orderError) throw orderError;
       
-      const userIds = orderData.map(order => order.user_id);
+      const userIds = [...new Set(orderData.map(order => order.user_id).filter(Boolean))];
       let userMap = {};
       if (userIds.length > 0) {
         const { data: usersData, error: usersError } = await supabase
           .from('users')
-          .select('id, first_name')
+          .select('id, first_name, last_name')
           .in('id', userIds);
         if (usersError) throw usersError;
-        usersData.forEach(u => { userMap[u.id] = u.first_name; });
+        usersData.forEach(u => {
+          const full = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+          userMap[u.id] = full || u.first_name || 'Unknown';
+        });
       }
       
       setAvailableOrders(orderData.map(order => ({
@@ -66,15 +69,18 @@ export default function DelivererOrders() {
       
       if (orderError) throw orderError;
       
-      const userIds = orderData.map(order => order.user_id);
+      const userIds = [...new Set(orderData.map(order => order.user_id).filter(Boolean))];
       let userMap = {};
       if (userIds.length > 0) {
         const { data: usersData, error: usersError } = await supabase
           .from('users')
-          .select('id, first_name')
+          .select('id, first_name, last_name')
           .in('id', userIds);
         if (usersError) throw usersError;
-        usersData.forEach(u => { userMap[u.id] = u.first_name; });
+        usersData.forEach(u => {
+          const full = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+          userMap[u.id] = full || u.first_name || 'Unknown';
+        });
       }
       
       setMyOrders(orderData.map(order => ({
