@@ -135,7 +135,7 @@ const SignupScreen = () => {
       }
 
       // Navigate away from signup screen since user is already authenticated
-      navigation.replace('Home');
+      navigation.replace('MainTabs', { screen: 'Home' });
     };
   
     checkSessionAndProcessReferral();
@@ -207,7 +207,7 @@ const SignupScreen = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
       Alert.alert("Already Signed In", "You are already signed in.", [
-        { text: "Go to Home", onPress: () => navigation.replace('Home') },
+        { text: "Go to Home", onPress: () => navigation.replace('MainTabs', { screen: 'Home' }) },
       ]);
       return;
     }
