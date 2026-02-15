@@ -1,4 +1,4 @@
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView, RefreshControl } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, SafeAreaView, RefreshControl, Alert } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import supabase from "../supabaseClient"
 import { useNavigation } from '@react-navigation/native';
@@ -153,7 +153,23 @@ export default function OrdersScreen() {
             <Text className="text-2xl font-bold text-white mb-2">Your Orders</Text>
             <Text className="text-white/80 text-sm">Track your food delivery</Text>
           </View>
-          <View style={{ width: 40 }} />
+          <TouchableOpacity
+            onPress={() => Alert.alert(
+              'Order help',
+              'Have questions or issues with your order? Contact us at officialquickbite@gmail.com',
+              [{ text: 'OK' }]
+            )}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: '#8B5CF6',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 20, fontWeight: '700' }}>?</Text>
+          </TouchableOpacity>
         </View>
         
         {/* Tab Navigation */}
@@ -193,12 +209,20 @@ export default function OrdersScreen() {
             <Text className="text-gray-500 text-center px-8">
               Start exploring restaurants and place your first order!
             </Text>
+            <Text className="text-gray-500 text-center text-sm mt-8 px-6">
+              Need help with orders? Send an email to officialquickbite@gmail.com
+            </Text>
           </View>
         ) : (
           <FlatList
             data={orders}
             keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={{ padding: 20, paddingBottom: 0, flexGrow: 1 }}
+            contentContainerStyle={{ padding: 20, paddingBottom: 24, flexGrow: 1 }}
+            ListFooterComponent={
+              <Text className="text-gray-500 text-center text-sm mt-4 px-4">
+                Need help with orders? Send an email to officialquickbite@gmail.com
+              </Text>
+            }
             renderItem={({ item }) => (
               <AnimatedButton
                 onPress={() => navigation.navigate('OrderDetails', { 
