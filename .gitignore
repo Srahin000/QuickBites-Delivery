@@ -29,10 +29,19 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# ========== Env & secrets (keep repo secure) ==========
 .env
-.env*.local
+.env.*
+!.env.example
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+*.env.local
+.vercel
 
 # typescript
 *.tsbuildinfo
-.vercel
